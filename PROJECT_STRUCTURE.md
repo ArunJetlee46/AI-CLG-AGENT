@@ -83,7 +83,7 @@ ai pro/
 ├── deploy/             # Prometheus, Grafana, SQL schema, Neo4j seed
 ├── docs/               # 13 phase design documents
 ├── .github/            # CI workflows
-├── .env / .env.example # Environment configuration
+├── .env / .env.example # Environment configuration (runtime env is read from backend/.env when running the API)
 ├── docker-compose.yml  # Full mode: postgres, redis, neo4j, qdrant, mlflow, backend, worker, frontend (+ observability/ollama profiles)
 ├── docker-compose.local.yml
 ├── fly.toml            # Fly.io deployment
@@ -144,23 +144,45 @@ backend/
 │   ├── models/
 │   │   └── entities.py         # SQLAlchemy entities (users, students, lecturers, courses, enrollments,
 │   │                           #   results, attendance, audit_logs, approvals, InterventionPlan, etc.)
-│   ├── schemas/
-│   │   └── common.py           # Pydantic contracts (incl. AdviseRequest, InterventionRequest, ShortlistRequest)
-│   ├── services/
-│   │   ├── llm.py              # LLM gateway: Groq → Gemini → Ollama → local fallback
-│   │   ├── rag.py              # RAG answer pipeline + curriculum fallback (_ask_curriculum_rag)
-│   │   ├── curriculum_rag.py   # In-process curriculum KB (merged from college-ai): hybrid
-│   │   │                       #   retriever + grounding engine (229 chunks)
-│   │   ├── vector_store.py     # Qdrant/Chroma backends, main + curriculum collections, has()
-│   │   ├── pipeline.py         # KB ingestion (main + curriculum, idempotent)
-│   │   ├── evaluation.py       # Grounded-answer evaluation/refusal markers
-│   │   ├── execution.py        # Approved write execution (guarded by safety kill switch)
+│   ├── schemas/                # Per-domain Pydantic contracts (common.py re-exports them all)
+│   │   ├── auth.py             #   LoginRequest, TokenResponse, UserOut, UserCreate/Update
+│   │   ├── chat.py             #   ChatRequest/Response
+│   │   ├── approval.py         #   ApprovalDecision
+│   │   ├── audit.py            #   AuditRow, AuditQuery
+│   │   ├── students.py         #   AdviseRequest, InterventionRequest
+│   │   ├── placement.py        #   ShortlistRequest, Company/JD/Drive/Round/Selection/Notify
+│   │   ├── faculty.py          #   LessonPlan, AssignmentEval, Similarity, Interview, Resume, ...
+│   │   ├── admin.py            #   AnnouncementCreate, CopilotRequest, PredictionOut, ModelRegister, ...
+│   │   └── common.py           #   Back-compat shim (re-exports every schema)
+│   ├── services/               # Domain packages; flat-path files are back-compat shims
+│   │   ├── admin/              # Admin Copilot
+│   │   │   ├── copilot.py      #   command center, health score, early warnings, safety, agents
+│   │   │   ├── intelligence.py #   department/faculty workload intelligence, forecasts
+│   │   │   └── ai_tools.py     #   curriculum intelligence, resources, research, industry
+│   │   ├── placement/
+│   │   │   ├── core.py         #   readiness, at-risk, shortlist, batch report
+│   │   │   └── intelligence.py #   placement analytics + forecasts
+│   │   ├── faculty/
+│   │   │   ├── core.py         #   workload, course health, at-risk, interventions
+│   │   │   ├── intelligence.py #   class performance intelligence, trends
+│   │   │   └── tools.py        #   lesson plans, question papers, similarity, viva
+│   │   ├── students/
+│   │   │   ├── core.py         #   success score, alerts, predictions, advise
+│   │   │   ├── growth.py       #   digital twin, growth journey
+│   │   │   └── tools.py        #   mock interviews, resume, project mentor
+│   │   ├── rag/                # Hybrid retrieval + curriculum fallback
+│   │   │   ├── engine.py       #   RAGService (retrieve/answer/answer_offline, grounding guard)
+│   │   │   ├── curriculum.py   #   in-process curriculum KB (hybrid retriever + grounding, 229 chunks)
+│   │   │   ├── vector_store.py #   Qdrant/Chroma backends, main + curriculum collections, has()
+│   │   │   ├── pipeline.py     #   KB ingestion (main + curriculum, idempotent)
+│   │   │   ├── llm.py          #   LLM gateway: Groq → Gemini → Ollama → local fallback
+│   │   │   ├── evaluation.py   #   grounded-answer evaluation / refusal markers
+│   │   │   └── graph_service.py#   knowledge-graph helpers
+│   │   ├── notifications.py    # Notification feed (announcements, materialize)
+│   │   ├── execution.py        # Approved write execution (safety-kill-switch guarded)
 │   │   ├── prereqs.py          # Recursive-CTE prerequisite traversal
-│   │   ├── students.py         # Student Copilot logic (score, alerts, predictions, advise, today)
-│   │   ├── faculty.py          # Faculty Copilot logic (workload, health, at-risk, interventions)
-│   │   ├── placement.py        # Placement Copilot logic (readiness, at-risk, shortlist, report)
-│   │   ├── admin_copilot.py    # Admin Copilot logic (command center, health score, early warnings, agents)
-│   │   └── graph_service.py    # Knowledge graph helpers
+│   │   └── (shims)             # admin_ai_tools.py, admin_copilot.py, pipeline.py, vector_store.py,
+│   │                           #   llm.py, curriculum_rag.py, ... re-alias the domain packages above
 │   └── workers/
 │       ├── celery_app.py       # Celery app
 │       └── tasks.py            # Background tasks
@@ -175,13 +197,19 @@ backend/
 ├── scripts/
 │   ├── eval_rag.py             # RAG evaluation script
 │   └── load_test.py            # Load test script
-├── tests/                      # 15 test files — 111 tests, all green
+├── tests/                      # 24 test files — 183 tests, all green
 │   ├── conftest.py             # Isolated temp DB; CURRICULUM_RAG_ENABLED=false
-│   ├── test_agent_nodes.py, test_ai_eval.py, test_api.py,
-│   ├── test_approval_structural.py, test_curriculum_rag.py, test_health.py,
-│   ├── test_ml.py, test_optimize.py, test_orchestration.py, test_prereqs.py,
-│   ├── test_rag.py, test_students.py, test_faculty.py, test_placement.py,
-│   └── test_admin_module.py
+│   ├── api/                    # HTTP-layer tests (TestClient)
+│   │   └── test_api.py, test_health.py, test_approval_structural.py
+│   └── unit/                   # Service-layer tests grouped by domain
+│       ├── admin/              #   test_admin_ai_tools, test_admin_intelligence, test_admin_module
+│       ├── agents/             #   test_agent_nodes, test_orchestration
+│       ├── ml/                 #   test_ml, test_optimize
+│       ├── rag/                #   test_rag, test_curriculum_rag, test_ai_eval
+│       ├── faculty/            #   test_faculty, test_faculty_flow, test_faculty_intelligence, test_faculty_tools
+│       ├── placement/          #   test_placement, test_placement_intelligence
+│       ├── students/           #   test_students, test_student_growth, test_student_tools
+│       └── core/               #   test_prereqs
 ├── requirements.txt            # Core deps
 ├── requirements-ml.txt         # ML extras (ortools, shap, sklearn, scipy)
 ├── pyproject.toml              # pytest config (addopts = "-q")
@@ -227,7 +255,24 @@ frontend/
 │       │   └── routes.tsx
 │       └── admin/               # Admin Copilot — University Command Center (role: admin)
 │           ├── AdminDashboard.tsx   # health score, warnings, agents, kill switch
-│           ├── api.ts               # adminApi + types
+│           ├── api/                # adminApi split by domain + index barrel (import path unchanged)
+│           │   ├── index.ts        #   barrel: merges domain apis into `adminApi` + re-exports types
+│           │   ├── intelligence.ts #   command center, health score, safety, agents
+│           │   ├── analytics.ts    #   student/faculty/placement/dropout/curriculum/enrollment/accreditation
+│           │   ├── users.ts        #   users + announcements
+│           │   ├── resources.ts    #   resources + backups
+│           │   ├── models.ts       #   model registry
+│           │   ├── engagement.ts   #   research + industry
+│           │   ├── system.ts       #   system health
+│           │   ├── audit.ts        #   audit + approvals
+│           │   └── ai.ts           #   copilot, digital twin, timetable, evaluation
+│           ├── pages/              # pages grouped by domain
+│           │   ├── analytics/      #   StudentAnalytics, FacultyAnalytics, PlacementAnalytics,
+│           │   │                   #   DropoutAnalytics, CurriculumIntelligence, EnrollmentForecast, Accreditation
+│           │   ├── operations/     #   Users, Departments, Resources, Backups, ModelRegistry,
+│           │   │                   #   Governance, SystemHealth, Timetable, ApprovalsCenter, AuditCenter
+│           │   ├── ai/             #   Copilot, DigitalTwin, EvaluationCenter
+│           │   └── engagement/     #   Research, Industry
 │           └── routes.tsx
 ├── index.html
 ├── vite.config.ts               # Vite proxy /api → http://localhost:8000
@@ -321,8 +366,12 @@ cd frontend && npm install && npm run dev
 # Ollama (models: llama3.2:3b, nomic-embed-text)
 ollama serve
 
-# Tests (111 tests)
+# Tests (183 tests)
 cd backend && pytest
+
+# Embeddings: backend/.env sets EMBEDDING_BACKEND=local → 384-dim local/hash embeddings,
+# matching the 384-dim vector-store collections (Chroma/Qdrant). Ollama's nomic-embed-text
+# is 768-dim and fails against those collections, so it is not used for embeddings.
 ```
 
 ## Ports summary
