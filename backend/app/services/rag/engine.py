@@ -2,10 +2,10 @@ import logging
 import re
 
 from app.config import get_settings
-from app.services.curriculum_rag import get_curriculum_rag
-from app.services.llm import LLMResponse, get_llm_gateway
-from app.services.pipeline import KeywordIndex, get_keyword_index, split_sentences, tokenize
-from app.services.vector_store import get_embedder, get_reranker, get_vector_store
+from app.services.rag.curriculum import get_curriculum_rag
+from app.services.rag.llm import LLMResponse, get_llm_gateway
+from app.services.rag.pipeline import KeywordIndex, get_keyword_index, split_sentences, tokenize
+from app.services.rag.vector_store import get_embedder, get_reranker, get_vector_store
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

@@ -428,7 +428,7 @@ def get_copilot_status(db: Session, lecturer: Lecturer, user: User) -> dict:
     students = {r["student_id"] for r in rows}
     courses_with_data = sum(1 for r in rows if r.get("marks") is not None)
 
-    from app.services.faculty_intelligence import get_intervention_recommendations
+    from app.services.faculty.intelligence import get_intervention_recommendations
 
     recommendations = len(get_intervention_recommendations(db, lecturer))
 
