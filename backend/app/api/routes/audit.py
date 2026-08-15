@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_role
 from app.db import get_db
 from app.models.entities import AuditLog, DecisionCard
-from app.schemas.common import AuditRow
+from app.schemas.audit import AuditRow
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 

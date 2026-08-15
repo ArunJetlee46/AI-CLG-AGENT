@@ -6,7 +6,7 @@ from app.api.deps import get_current_user
 from app.core.audit import record_event
 from app.db import get_db
 from app.models.entities import User
-from app.schemas.common import ChatRequest, ChatResponse
+from app.schemas.chat import ChatRequest, ChatResponse
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 

@@ -69,9 +69,9 @@ def test_keyword_index_ranks_relevant_first() -> None:
 
 def test_ingest_and_offline_extractive_answer(monkeypatch) -> None:
     # force a fresh global keyword index + RAG singleton and disable vector store
-    monkeypatch.setattr("app.services.rag.get_vector_store", lambda: None)
+    monkeypatch.setattr("app.services.rag.engine.get_vector_store", lambda: None)
     monkeypatch.setattr("app.services.pipeline._keyword_index", None)
-    monkeypatch.setattr("app.services.rag._rag", None)
+    monkeypatch.setattr("app.services.rag.engine._rag", None)
 
     stats = ingest_documents(
         [

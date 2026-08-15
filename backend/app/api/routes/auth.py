@@ -9,7 +9,7 @@ from app.api.deps import get_current_user, require_role
 from app.core.security import create_access_token, create_refresh_token, decode_token, verify_password
 from app.db import get_db
 from app.models.entities import User
-from app.schemas.common import LoginRequest, RefreshRequest, TokenResponse, UserOut
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

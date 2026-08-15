@@ -6,7 +6,7 @@ from app.api.deps import require_role
 from app.db import get_db
 from app.ml.predict import predict_all, predict_risk
 from app.models.entities import ModelRecord, Prediction
-from app.schemas.common import PredictionOut
+from app.schemas.admin import PredictionOut
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 

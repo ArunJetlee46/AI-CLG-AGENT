@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.api.deps import require_role
 from app.db import get_db
 from app.models.entities import User
-from app.schemas.common import (
-    AdviseRequest,
+from app.schemas.faculty import (
     AssignmentAssistRequest,
     InterviewRequest,
     InterviewScoreRequest,
     ProjectMentorRequest,
     ResumeRequest,
 )
+from app.schemas.students import AdviseRequest
 from app.services import student_growth, student_tools, students
 from sqlalchemy.orm import Session
 

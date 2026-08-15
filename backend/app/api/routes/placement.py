@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_role
 from app.db import get_db
 from app.models.entities import JobDescription, User
-from app.schemas.common import (
+from app.schemas.placement import (
     CompanyCreate,
     DriveCreate,
     JDAnalyzeRequest,

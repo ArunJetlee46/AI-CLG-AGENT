@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from app.api.deps import require_role
 from app.db import SessionLocal
 from app.models.entities import User
-from app.schemas.common import GenerateRequest
+from app.schemas.admin import GenerateRequest
 
 router = APIRouter(prefix="/synthetic", tags=["synthetic"])
 

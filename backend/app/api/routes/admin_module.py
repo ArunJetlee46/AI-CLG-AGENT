@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_role
 from app.db import get_db
 from app.models.entities import Announcement, User
-from app.schemas.common import (
+from app.schemas.admin import (
     AnnouncementCreate,
     CopilotRequest,
     EvaluationRequest,
@@ -17,9 +17,8 @@ from app.schemas.common import (
     ResourceUpdate,
     ScenarioRequest,
     TimetableOptimizeRequest,
-    UserCreate,
-    UserUpdate,
 )
+from app.schemas.auth import UserCreate, UserUpdate
 from app.services import admin_ai_tools, admin_copilot, admin_intelligence
 
 router = APIRouter(prefix="/admin", tags=["admin"])
