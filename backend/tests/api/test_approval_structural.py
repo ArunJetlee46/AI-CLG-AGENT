@@ -56,12 +56,17 @@ def test_mutator_rejects_missing_approval_id() -> None:
 
 def test_mutator_rejects_pending_approval() -> None:
     db = SessionLocal()
+    approval = None
     try:
         approval = _make_approval(db, action="intervention", payload={"plan_text": "tutoring"})
         with pytest.raises(ApprovalRequiredError):
             execution.apply_intervention(db, approval_id=approval.id, actor="tester")
         assert db.query(InterventionPlan).count() == 0
     finally:
+        if approval is not None:
+            # clean up so the shared test DB stays order-independent
+            db.delete(approval)
+            db.commit()
         db.close()
 
 
