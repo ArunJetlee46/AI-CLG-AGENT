@@ -1,0 +1,57 @@
+{
+  "uid": "beru-overview",
+  "title": "Beru Campus AI — API overview",
+  "tags": ["beru"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request rate (all endpoints)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(beru_http_requests_total[1m]))",
+          "legendFormat": "req/s"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request rate by status",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(beru_http_requests_total[1m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request rate by endpoint",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (path) (rate(beru_http_requests_total[1m]))",
+          "legendFormat": "{{path}}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Total requests (counter)",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "options": { "reduceOptions": { "values": false, "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "expr": "sum(beru_http_requests_total)",
+          "legendFormat": "requests"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env / secrets
+.env
+.env.local
+*.pem
+
+# SQLite / local data
+*.db
+data/
+beru data/
+
+# Vector stores / scratch models
+chroma_data/
+models_test/
+
+# Node
+node_modules/
+dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Logs & misc
+*.log
+.DS_Store
+Thumbs.db
+
+# ML artifacts
+mlruns/
+mlflow.db
+models/*.joblib
+models/*.pkl

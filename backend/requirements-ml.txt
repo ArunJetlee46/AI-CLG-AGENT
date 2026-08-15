@@ -1,0 +1,10 @@
+# Optional heavy ML/MLOps dependencies (install separately: pip install -r requirements-ml.txt)
+scikit-learn>=1.5
+xgboost>=2.1
+lightgbm>=4.4
+shap>=0.46
+lime>=0.2.0
+ortools>=9.10
+mlflow>=2.15
+chromadb>=0.5
+sentence-transformers>=3.0

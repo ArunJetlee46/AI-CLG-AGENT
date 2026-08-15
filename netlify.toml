@@ -1,0 +1,19 @@
+# Netlify config (free tier). SPA fallback + /api proxy to the deployed backend.
+# Root: Netlify builds from the frontend/ directory.
+# Replace the /api proxy target with your Render/Fly backend URL.
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://beru-backend.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,10 @@
+# Local-machine port overrides for environments where 6379 is taken by
+# another container (e.g. a project-local redis). Keep the host mapping on a
+# free port; inter-container traffic is unaffected.
+#
+# Usage:  docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+
+services:
+  redis:
+    ports: !override
+      - "6380:6379"

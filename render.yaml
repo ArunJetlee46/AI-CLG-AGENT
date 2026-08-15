@@ -1,0 +1,65 @@
+# Render blueprint (free tier): https://render.com/docs/blueprint-spec
+# - Web service runs the FastAPI backend (uvicorn).
+# - Worker runs Celery (background ML/synthetic tasks).
+# - PostgreSQL 16 free instance for the runtime database.
+#
+# Environment overrides come from the Render dashboard secrets —
+# the values below are the safe minimum to boot.
+
+services:
+  - type: web
+    name: beru-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt "ortools>=9.10"
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: beru-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEFAULT_ADMIN_PASSWORD
+        generateValue: true
+      - key: REDIS_URL
+        value: redis://localhost:6379/0
+      - key: SENTRY_DSN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: worker
+    name: beru-worker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt "ortools>=9.10"
+    startCommand: celery -A app.workers.celery_app worker -l info
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: beru-db
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          name: beru-backend
+          type: web
+          property: envVar
+          envVarKey: SECRET_KEY
+      - key: REDIS_URL
+        value: redis://localhost:6379/0
+
+databases:
+  - name: beru-db
+    plan: free
+    databaseName: beru
+    user: beru
