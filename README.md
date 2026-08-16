@@ -21,6 +21,21 @@
 - `docs/PHASE1_Requirement_Analysis.md` — problem statement, scope, FRs/NFRs, stakeholders, use cases, user stories, modules
 - `docs/PHASE2_System_Design.md` — architecture diagrams (Mermaid): HLA, LLA, components, deployment, sequences, classes, ER, DFD
 
+## What's in the box
+
+The assistant is a LangGraph supervisor with specialist agents (academic, success, resources, placement, attendance, exam, advising), all orchestrated in a single request pipeline. Recent capability themes:
+
+| Theme | What it added |
+|---|---|
+| **A. Personalization** | Agent responses are personalized per student (risk, GPA, attendance, placement readiness) using a 4-stage reasoning loop — router, planner, reflect (critic off by default, `AGENT_LLM_REASONING_STAGES`). |
+| **B. Persistent memory** | Every conversation is saved to `conversations` / `conversation_messages` (SQLite or Postgres) with per-actor pruning, so a student's history survives restarts and flows back into chat. |
+| **C. Security hardening** | Refresh tokens with `jti` rotation + reuse detection (a replayed token revokes the whole chain, `401 token_reuse_detected`), `POST /auth/logout`, SlowAPI rate limits on login and chat, CORS policy from settings. |
+| **D. Groq streaming** | `POST /agents/chat` with `{"stream": true}` returns an SSE stream (`chunk` / `done` / `error` events) with Groq as the primary streaming provider (Gemini/Ollama/local fallback emit whole-text). The web chat renders tokens live. |
+| **E. Database → RAG backfill** | Live DB rows (courses, lecturers, rooms, companies, drives, resources, announcements, research, industry partners, aggregate student stats) are ingested into the vector store + keyword index and persisted to `data/database_rag.jsonl` so restarts rebuild instantly. Runs at boot and on demand via `POST /admin/rag-backfill`. Student PII never enters the corpus — only aggregate numbers. |
+| **F. Final hardening + docs** | Web SSE consumption with session-refresh retry, dead-code removal, README/docs polish. |
+
+All six themes are committed and pushed to `main`. The full backend suite (`pytest`) is green, and the frontend passes `tsc --noEmit` + vitest.
+
 ## Quickstart (Docker)
 
 ```bash
@@ -46,6 +61,19 @@ uvicorn app.main:app --reload
 ```
 
 Backend runs standalone with SQLite (`beru.db`) — no Postgres required for the scaffold. Set `DATABASE_URL` to Postgres for full mode.
+
+Streaming chat example:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"23AD001","password":"student123"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+curl -s -N -X POST http://localhost:8000/api/v1/agents/chat \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"message":"what are the tuition fees","stream":true}'
+# -> data: {"type":"chunk","content":"..."} ... data: {"type":"done","intent":"academic",...}
+```
 
 ### Frontend
 
@@ -84,19 +112,19 @@ pytest
 ```
 ├── backend/
 │   ├── app/
-│   │   ├── agents/        # LangGraph supervisor + 4 specialist agents
-│   │   ├── api/routes/    # auth, agents, approvals, audit, predictions, synthetic
-│   │   ├── core/          # security (JWT/bcrypt), hash-chained audit
+│   │   ├── agents/        # LangGraph supervisor + specialist agents, memory, state
+│   │   ├── api/routes/    # auth, agents (SSE streaming), approvals, audit, admin
+│   │   ├── core/          # security (JWT/bcrypt + refresh rotation), rate limiting, audit
 │   │   ├── ml/            # features, train, predict, SHAP explain (lazy-loaded)
-│   │   ├── models/        # SQLAlchemy entities (mirrors PHASE2 ER diagram)
+│   │   ├── models/        # SQLAlchemy entities (incl. RefreshToken, conversations)
 │   │   ├── schemas/       # Pydantic contracts
-│   │   ├── services/      # LLM gateway (Groq→Gemini→Ollama), RAG, curriculum RAG
+│   │   ├── services/      # LLM gateway (Groq→Gemini→Ollama), RAG, DB→RAG backfill
 │   │   └── workers/       # Celery app + tasks
 │   ├── finetuning/        # LoRA/QLoRA training scripts + datasets (offline)
 │   ├── synthetic/         # deterministic synthetic data generator (CLI + API)
 │   └── tests/
-├── frontend/              # React + Vite + shadcn/ui
-├── data/                  # shared KB corpus + course index (229 chunks)
+├── frontend/              # React + Vite + shadcn/ui (SSE live-rendered chat)
+├── data/                  # shared KB corpus, course index, database_rag.jsonl (gitignored)
 ├── docs/                  # Phase 1 & Phase 2 documents
 └── .github/workflows/     # CI
 ```
@@ -114,7 +142,12 @@ See `.env.example`. Key ones:
 | `VECTOR_STORE_BACKEND` | `qdrant` | `qdrant` or `chroma` |
 | `GROQ_API_KEY` / `GEMINI_API_KEY` | empty | Cloud LLM providers |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local LLM fallback |
-| `LLM_PROVIDER_ORDER` | `groq,gemini,ollama` | Fallback chain order |
+| `LLM_PROVIDER_ORDER` | `groq,ollama,gemini` | Fallback chain order |
+| `AGENT_LLM_REASONING_STAGES` | `router,planner,reflect` | Reasoning stages run by the supervisor |
+| `EMBEDDING_BACKEND` | `onnx` | Local embedding backend (`onnx` or `local`) |
+| `DB_RAG_BACKFILL_ENABLED` | `true` | Boot-time DB → RAG backfill + `database_rag.jsonl` write |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed origins; production refuses `*` |
+| `LOGIN_RATE_LIMIT` / `CHAT_RATE_LIMIT` | `10/minute` / `60/minute` | SlowAPI limits on `/auth/login` and `/agents/chat` |
 | `COLLEGE_AI_URL` / `COLLEGE_AI_TIMEOUT_SECONDS` | removed | Former separate service — curriculum RAG is now in-process |
 | `CURRICULUM_RAG_ENABLED` | `true` | Toggle the in-process curriculum RAG fallback |
 | `CURRICULUM_RAG_JSONL` | `../data/anna_university_aids_reg2021_rag.jsonl` | Curriculum corpus (229 chunks) |

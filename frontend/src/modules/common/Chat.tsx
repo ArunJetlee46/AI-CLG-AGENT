@@ -6,7 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
-import { agentApi, type ChatResponse } from "@/core/lib/api";
+import { chatStream } from "@/core/lib/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -52,34 +52,72 @@ export function Chat() {
     const question = (preset ?? input).trim();
     if (!question || !token) return;
     setMessages((prev) => [...prev, { role: "user", content: question }]);
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
     try {
-      const response: ChatResponse = await agentApi.chat(question, token);
-      const via = response.provider
-        ? ` via ${response.provider === "local-fallback" ? "local fallback" : response.provider} (${response.model})`
-        : "";
-      const chips = [
-        `intent ${response.intent}`,
-        response.agent,
-        via || undefined,
-        response.approval_id ? `approval ${response.approval_id.slice(0, 8)}` : undefined,
-        response.decision_card_id ? `card ${response.decision_card_id.slice(0, 8)}` : undefined,
-      ].filter(Boolean);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: response.answer, meta: chips.join(" · ") },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Error: ${err instanceof Error ? err.message : "request failed"}`,
-          meta: "request failed",
-          error: true,
+      await chatStream(
+        question,
+        token,
+        (text) => {
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last.role === "assistant" && !last.error) {
+              copy[copy.length - 1] = { ...last, content: last.content + text };
+            }
+            return copy;
+          });
         },
-      ]);
+        (final) => {
+          const via = final.provider
+            ? ` via ${final.provider === "local-fallback" ? "local fallback" : final.provider}${final.model ? ` (${final.model})` : ""}`
+            : "";
+          const chips = [
+            `intent ${final.intent}`,
+            final.agent,
+            via || undefined,
+            final.approval_id ? `approval ${final.approval_id.slice(0, 8)}` : undefined,
+            final.decision_card_id ? `card ${final.decision_card_id.slice(0, 8)}` : undefined,
+          ].filter(Boolean);
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last.role === "assistant" && !last.error) {
+              copy[copy.length - 1] = {
+                ...last,
+                content: final.answer || last.content,
+                meta: chips.join(" · "),
+              };
+            }
+            return copy;
+          });
+        },
+        (message) => {
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last.role === "assistant") {
+              copy[copy.length - 1] = { ...last, content: `Error: ${message}`, meta: "request failed", error: true };
+            }
+            return copy;
+          });
+        },
+      );
+    } catch (err) {
+      setMessages((prev) => {
+        const copy = [...prev];
+        const last = copy[copy.length - 1];
+        if (last.role === "assistant") {
+          copy[copy.length - 1] = {
+            ...last,
+            content: `Error: ${err instanceof Error ? err.message : "request failed"}`,
+            meta: "request failed",
+            error: true,
+          };
+        }
+        return copy;
+      });
     } finally {
       setBusy(false);
     }
