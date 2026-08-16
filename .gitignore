@@ -21,6 +21,7 @@ beru data/
 # Vector stores / scratch models
 chroma_data/
 models_test/
+backend/models/
 
 # Node
 node_modules/

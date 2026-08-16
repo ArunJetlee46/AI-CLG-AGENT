@@ -6,6 +6,7 @@ os.environ["JWT_SECRET"] = "test-secret"
 os.environ["LLM_PROVIDER_ORDER"] = "ollama"
 os.environ["OLLAMA_BASE_URL"] = "http://localhost:9"  # unreachable -> forces local-fallback path
 os.environ["CURRICULUM_RAG_ENABLED"] = "false"  # tests must not depend on the curriculum RAG
+os.environ["EMBEDDING_BACKEND"] = "local"  # tests never download ONNX artifacts -> hash embeddings
 
 import pytest
 

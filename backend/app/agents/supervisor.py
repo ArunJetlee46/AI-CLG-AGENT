@@ -8,6 +8,7 @@ from app.agents.academic_ops import AcademicOpsAgent
 from app.agents.debate import debate_node
 from app.agents.execute import ExecuteAgent
 from app.agents.memory import get_memory, memory_node
+from app.agents.reasoning import build_plan, classify_intent, reflect_answer
 from app.agents.specialists import KnowledgeAgent, ResourceOptimizerAgent, StudentSuccessAgent
 from app.agents.state import AgentState
 from app.core.audit import create_decision_card, record_event
@@ -35,17 +36,22 @@ def _classify(text: str) -> str:
 
 def router_node(state: AgentState) -> AgentState:
     text = state["messages"][-1]["content"]
-    state["intent"] = _classify(text)
+    state["intent"] = classify_intent(text) or _classify(text)
     return state
 
 
 def planner_node(state: AgentState) -> AgentState:
-    """Decomposes the request into ordered execution steps (deterministic).
+    """Decomposes the request into ordered execution steps.
 
-    Rule-based today: single-domain queries get the standard pipeline, compound
-    queries are flagged as multi-step (an LLM planner is config-gated future
-    work). The plan is audited with the decision card.
+    LLM planner first (config-gated, whitelisted vocabulary); falls back to the
+    deterministic rule planner when the gateway is down or returns an unsafe
+    plan. The plan is audited with the decision card.
     """
+    llm_plan = build_plan(state)
+    if llm_plan:
+        state["plan"] = llm_plan
+        return state
+
     text = state["messages"][-1]["content"].lower()
     domains = [d for d in ("risk", "timetable", "graph", "course", "exam", "attendance") if d in text]
     state["plan"] = ["classify", "execute", "reflect"] + (["debate"] if state.get("intent") == "success" else [])
@@ -57,9 +63,11 @@ def planner_node(state: AgentState) -> AgentState:
 def reflect_node(state: AgentState) -> AgentState:
     """Self-critique pass before finalization (Phase 8 reflection node).
 
-    Rule-based checks: answer presence, admitted uncertainty, citation coverage,
-    approval gating. Produces findings + a base confidence used by the debate
-    node; appends a visible self-check note only for knowledge answers.
+    Deterministic checks (empty answer, admitted uncertainty, citation coverage,
+    approval gating) always run; an LLM critic then adds its findings and a
+    confidence delta when the gateway is reachable. Produces findings + a base
+    confidence used by the debate node; appends a visible self-check note only
+    for knowledge answers.
     """
     answer = state.get("answer", "")
     findings: list[str] = []
@@ -76,6 +84,11 @@ def reflect_node(state: AgentState) -> AgentState:
     if state.get("intent") in ("academic", "knowledge") and not state.get("citations"):
         findings.append("no citations attached to factual answer")
         confidence -= 0.10
+
+    critique = reflect_answer(state)
+    if critique:
+        findings.extend(critique["issues"])
+        confidence -= critique["confidence_delta"]
 
     state["reflection"] = findings
     state["confidence"] = round(max(0.1, confidence), 2)

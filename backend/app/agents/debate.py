@@ -1,5 +1,6 @@
 import logging
 
+from app.agents.reasoning import critique_claim
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models.entities import Enrollment, Prediction, Student
@@ -78,7 +79,10 @@ def debate_node(state: dict) -> dict:
     Coordinator rules (Phase 7 §5.2):
     - one critique round per graph run (multi-round budget applies when the
       full Placement/Analytics pair lands with Phase 7 agents);
-    - fusion: fused = min(0.9, 0.5*proposer + 0.5*validator);
+    - validators: the SQL RiskSanityValidator always runs; an independent LLM
+      critic (config-gated) joins when the gateway is reachable;
+    - fusion weights: proposer 0.5 + validator 0.5 (SQL only) or
+      proposer 0.4 + SQL 0.3 + LLM critic 0.3;
     - stalemate (delta > 0.15 or evidence gap) -> escalate: human review gate.
     """
     proposer_conf = float(state.get("confidence") or 0.5)
@@ -86,18 +90,31 @@ def debate_node(state: dict) -> dict:
 
     validator = RiskSanityValidator()
     validation = validator.validate(claim)
+    validators = [validation]
 
-    fused = fuse_confidences([(proposer_conf, 0.5), (validation["confidence"], 0.5)])
-    delta = abs(proposer_conf - validation["confidence"])
+    critic = critique_claim(claim)
+    if critic:
+        validators.append(critic)
 
-    escalated = validation["verdict"] in ("disagree", "evidence_gap") or delta > DEBATE_AGREE_DELTA
+    pairs = [(proposer_conf, 0.5), (validation["confidence"], 0.5)]
+    if critic:
+        pairs = [(proposer_conf, 0.4), (validation["confidence"], 0.3), (critic["confidence"], 0.3)]
+
+    fused = fuse_confidences(pairs)
+    delta = max(abs(proposer_conf - v["confidence"]) for v in validators)
+
+    disagreed = [v for v in validators if v["verdict"] in ("disagree", "evidence_gap")]
+    escalated = bool(disagreed) or delta > DEBATE_AGREE_DELTA
     debate = {
         "rounds": 1,
         "proposer": state.get("agent", "specialist"),
         "proposer_confidence": proposer_conf,
-        "validator": validation["validator"],
+        "validator": validator.name,
         "validator_verdict": validation["verdict"],
         "validator_confidence": validation["confidence"],
+        "critic_verdict": critic["verdict"] if critic else None,
+        "critic_confidence": critic["confidence"] if critic else None,
+        "critic_reasons": critic.get("reasons", []) if critic else [],
         "agreement_delta": round(delta, 3),
         "fused_confidence": round(fused, 3),
         "escalated": escalated,
@@ -107,10 +124,10 @@ def debate_node(state: dict) -> dict:
     state["confidence"] = fused
 
     if escalated:
+        verdicts = "; ".join(f"{v['validator']}={v['verdict']}" for v in validators)
         state["requires_approval"] = True
         state["answer"] += (
-            f"\n[debate] {validation['validator']} could not fully corroborate "
-            f"this flag (verdict: {validation['verdict']}, agreement {validation['agreement']}). "
+            f"\n[debate] validators could not fully corroborate this flag ({verdicts}). "
             "Escalated for human review."
         )
 
@@ -118,8 +135,12 @@ def debate_node(state: dict) -> dict:
         {
             "action": "debate_validation",
             "entity_type": "prediction",
-            "payload": {"verdict": validation["verdict"], "fused_confidence": round(fused, 3),
-                        "escalated": escalated},
+            "payload": {
+                "validator_verdict": validation["verdict"],
+                "critic_verdict": critic["verdict"] if critic else None,
+                "fused_confidence": round(fused, 3),
+                "escalated": escalated,
+            },
         }
     )
     return state

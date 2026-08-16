@@ -11,6 +11,15 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def _httpx_timeout() -> httpx.Timeout:
+    """Request timeout with a bounded CONNECT phase.
+
+    A refused/unreachable provider must fail in ~2s (not the full read timeout),
+    so the agent's rule-based fallback kicks in quickly when the LLM is down.
+    """
+    return httpx.Timeout(settings.llm_timeout_seconds, connect=2.0, pool=2.0)
+
+
 @dataclass
 class LLMResponse:
     content: str
@@ -33,6 +42,7 @@ class LLMGateway:
 
     def __init__(self) -> None:
         self._states: dict[str, _ProviderState] = {p: _ProviderState() for p in settings.llm_providers}
+        self._all_down_until: float = 0.0
 
     def _is_tripped(self, name: str) -> bool:
         st = self._states[name]
@@ -51,6 +61,8 @@ class LLMGateway:
             logger.warning("Circuit breaker tripped for LLM provider '%s' for 60s", name)
 
     def complete(self, messages: list[dict[str, str]], tools: list[dict[str, Any]] | None = None) -> LLMResponse:
+        if time.time() < self._all_down_until:
+            return self._rule_fallback(messages)
         errors: list[str] = []
         for name in settings.llm_providers:
             if self._is_tripped(name):
@@ -61,6 +73,7 @@ class LLMGateway:
                 errors.append(f"{name}: {exc}")
                 self._record_failure(name)
         logger.warning("All LLM providers failed (%s); using local rule-based fallback", "; ".join(errors))
+        self._all_down_until = time.time() + settings.llm_down_cooldown_seconds
         return self._rule_fallback(messages)
 
     def _call(self, name: str, messages: list[dict[str, str]], tools: list[dict[str, Any]] | None) -> LLMResponse:
@@ -80,7 +93,7 @@ class LLMGateway:
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {settings.groq_api_key}"},
             json={"model": settings.groq_model, "messages": messages, "temperature": 0.3},
-            timeout=settings.llm_timeout_seconds,
+            timeout=_httpx_timeout(),
         )
         resp.raise_for_status()
         data = resp.json()
@@ -101,7 +114,7 @@ class LLMGateway:
             f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent",
             params={"key": settings.gemini_api_key},
             json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=settings.llm_timeout_seconds,
+            timeout=_httpx_timeout(),
         )
         resp.raise_for_status()
         data = resp.json()
@@ -117,7 +130,7 @@ class LLMGateway:
         resp = httpx.post(
             f"{settings.ollama_base_url}/api/chat",
             json={"model": settings.ollama_model, "messages": messages, "stream": False},
-            timeout=settings.llm_timeout_seconds,
+            timeout=_httpx_timeout(),
         )
         resp.raise_for_status()
         data = resp.json()

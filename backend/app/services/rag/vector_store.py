@@ -26,6 +26,15 @@ class EmbeddingService:
                 return self._ollama_embed(texts)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Ollama embeddings failed (%s); falling back to local", exc)
+        if settings.embedding_backend == "onnx":
+            from app.services.rag.onnx import get_onnx_embedder
+
+            onnx = get_onnx_embedder()
+            if onnx.is_available():
+                try:
+                    return onnx.embed(texts)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("ONNX embeddings failed (%s); falling back to local", exc)
         self._load()
         if self._model:
             return [list(map(float, v)) for v in self._model.encode(texts)]
@@ -38,10 +47,11 @@ class EmbeddingService:
     def _ollama_embed(texts: list[str]) -> list[list[float]]:
         import httpx
 
+        timeout = httpx.Timeout(120, connect=2.0, pool=2.0)
         resp = httpx.post(
             f"{settings.ollama_base_url}/api/embed",
             json={"model": settings.ollama_embedding_model, "input": texts},
-            timeout=120,
+            timeout=timeout,
         )
         if resp.status_code == 404:
             out: list[list[float]] = []
@@ -49,7 +59,7 @@ class EmbeddingService:
                 single = httpx.post(
                     f"{settings.ollama_base_url}/api/embeddings",
                     json={"model": settings.ollama_embedding_model, "prompt": t},
-                    timeout=120,
+                    timeout=timeout,
                 )
                 single.raise_for_status()
                 out.append(single.json()["embedding"])
@@ -89,6 +99,19 @@ def get_embedder() -> EmbeddingService:
     return _embedder
 
 
+def _embedding_dimension() -> int:
+    """Vector dimension for collection creation, derived from the live embedder.
+
+    Keeps every backend (Chroma/Qdrant) in lock-step with whatever embedder is
+    active, defaulting to 384 (bge-small-en-v1.5 / hash fallback) when the
+    embedder cannot produce a vector.
+    """
+    try:
+        return len(get_embedder().embed_one("warmup"))
+    except Exception:  # noqa: BLE001 - dimension is best-effort
+        return 384
+
+
 class VectorStore(Protocol):
     backend: str
 
@@ -115,7 +138,7 @@ class QdrantStore:
         try:
             self._client.create_collection(
                 collection_name=self._collection,
-                vectors_config=VectorParams(size=384, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=_embedding_dimension(), distance=Distance.COSINE),
             )
         except Exception:  # noqa: BLE001 - collection may already exist
             pass
@@ -215,6 +238,14 @@ class RerankerService:
                 self._model = False
 
     def rerank(self, query: str, candidates: list[dict], keep: int) -> list[dict]:
+        from app.services.rag.onnx import get_onnx_reranker
+
+        onnx = get_onnx_reranker()
+        if onnx.is_available():
+            try:
+                return onnx.rerank(query, candidates, keep)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("ONNX reranker failed (%s); using base order", exc)
         self._load()
         if not self._model or not candidates:
             return candidates[:keep]

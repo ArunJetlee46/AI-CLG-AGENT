@@ -366,12 +366,14 @@ cd frontend && npm install && npm run dev
 # Ollama (models: llama3.2:3b, nomic-embed-text)
 ollama serve
 
-# Tests (183 tests)
+# Tests (214 tests)
 cd backend && pytest
 
-# Embeddings: backend/.env sets EMBEDDING_BACKEND=local → 384-dim local/hash embeddings,
-# matching the 384-dim vector-store collections (Chroma/Qdrant). Ollama's nomic-embed-text
-# is 768-dim and fails against those collections, so it is not used for embeddings.
+# Embeddings: backend/.env sets EMBEDDING_BACKEND=onnx → 384-dim ONNX bge-small-en-v1.5
+# (backend/models/onnx, gitignored, auto-downloaded on first boot). Reranking uses the
+# ONNX bge-reranker-base cross-encoder; it is cache-only on the request path — prefetch
+# it with `python -m scripts.download_onnx_models`. If ONNX artifacts are missing, the
+# pipeline falls back to 384-dim hash embeddings + score order (offline-first guarantee).
 ```
 
 ## Ports summary

@@ -27,8 +27,12 @@ class Settings(BaseSettings):
     vector_store_dir: str = "chroma_data"
     vector_collection: str = "beru_documents"
 
-    embedding_backend: str = "ollama"
+    embedding_backend: str = "ollama"  # ollama | local (sentence-transformers) | onnx
     ollama_embedding_model: str = "nomic-embed-text"
+
+    onnx_model_dir: str = "models/onnx"
+    onnx_embedding_repo: str = "Xenova/bge-small-en-v1.5"
+    onnx_reranker_repo: str = "Xenova/bge-reranker-base"
 
     llm_provider_order: str = "groq,gemini,ollama"
     groq_api_key: str = ""
@@ -39,6 +43,9 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2:3b"
     llm_timeout_seconds: int = 120
     llm_circuit_breaker_failures: int = 3
+    llm_down_cooldown_seconds: int = 15  # skip all providers after a total outage, until this window passes
+
+    agent_llm_reasoning: bool = True  # LLM router/planner/reflect/debate; rules when the gateway is down
 
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     reranker_model: str = "bge-reranker-base"
