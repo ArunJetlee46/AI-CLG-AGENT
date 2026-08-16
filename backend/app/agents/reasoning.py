@@ -50,6 +50,13 @@ def _llm_ok(response: LLMResponse | None) -> bool:
     return response is not None and response.provider != "local-fallback"
 
 
+def _stage_enabled(stage: str) -> bool:
+    if not settings.agent_llm_reasoning:
+        return False
+    stages = {s.strip().lower() for s in settings.agent_llm_reasoning_stages.split(",") if s.strip()}
+    return stage in stages
+
+
 def _complete_json(system: str, user: str) -> dict | None:
     if not settings.agent_llm_reasoning:
         return None
@@ -58,7 +65,8 @@ def _complete_json(system: str, user: str) -> dict | None:
             [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
-            ]
+            ],
+            max_tokens=settings.llm_reasoning_max_tokens,
         )
     except Exception as exc:  # noqa: BLE001 - reasoning must never break the agent
         logger.warning("LLM reasoning call failed (%s); using rule fallback", exc)
@@ -69,50 +77,61 @@ def _complete_json(system: str, user: str) -> dict | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def classify_intent(text: str) -> str | None:
-    """LLM intent classification; returns one of INTENTS or None (use the rules)."""
+def plan_intent(text: str) -> tuple[str | None, list[str] | None]:
+    """Fused LLM intent + plan in a single call.
+
+    Returns (intent, steps); either half is None when the gateway is down, the
+    stage is disabled, or the output is out-of-vocabulary - callers fall back to
+    the deterministic rules per half independently.
+    """
+    if not _stage_enabled("router"):
+        return None, None
     result = _complete_json(
-        "You are an intent router for a university AI assistant. Classify the user's request into "
-        f"exactly one intent: {', '.join(INTENTS)}. Routing is critical - the wrong intent sends the "
-        "request to the wrong specialist. Examples:\n"
+        "You are an intent router and planner for a university AI assistant. Pick exactly one intent from "
+        f"{', '.join(INTENTS)} and an ordered plan using ONLY steps from: {', '.join(PLAN_STEPS)}. "
+        "Routing is critical - the wrong intent sends the request to the wrong specialist. Examples:\n"
         "- 'which students are at risk of dropping out' -> success (risk/dropout/predictions)\n"
         "- 'build a conflict-free timetable for CS301' -> resources (timetable/rooms/conflicts)\n"
         "- 'who teaches CS301' -> knowledge (knowledge graph/lecturer/department)\n"
         "- 'what courses are offered next term' -> academic (courses/exams/attendance/registration)\n"
-        'Reply with ONLY a JSON object: {"intent": "<one intent>"}.',
+        'Reply with ONLY a JSON object: {"intent": "<one intent>", "steps": ["classify", "retrieve", "analyze"]}.',
         text[:500],
     )
     if not result:
-        return None
+        return None, None
     intent = str(result.get("intent", "")).strip().lower()
-    return intent if intent in INTENTS else None
+    intent = intent if intent in INTENTS else None
+
+    steps: list[str] | None = None
+    if _stage_enabled("planner"):
+        raw = result.get("steps")
+        if isinstance(raw, list) and raw:
+            cleaned = [str(s).strip().lower() for s in raw]
+            if not any(s not in PLAN_STEPS for s in cleaned):
+                if "classify" not in cleaned:
+                    cleaned.insert(0, "classify")
+                steps = cleaned
+    return intent, steps
+
+
+def classify_intent(text: str) -> str | None:
+    """LLM intent classification; returns one of INTENTS or None (use the rules)."""
+    intent, _ = plan_intent(text)
+    return intent
 
 
 def build_plan(state: dict) -> list[str] | None:
     """LLM plan decomposition; returns whitelisted steps or None (use the rules)."""
     messages = state.get("messages") or []
     text = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
-    result = _complete_json(
-        "You are a planning agent for a university AI assistant. Decompose the request into an ordered "
-        f"list of steps chosen ONLY from: {', '.join(PLAN_STEPS)}. "
-        'Reply with ONLY JSON: {"steps": ["classify", "retrieve", "analyze"]}.',
-        text[:500],
-    )
-    if not result:
-        return None
-    steps = result.get("steps")
-    if not isinstance(steps, list) or not steps:
-        return None
-    cleaned = [str(s).strip().lower() for s in steps]
-    if any(s not in PLAN_STEPS for s in cleaned):
-        return None
-    if "classify" not in cleaned:
-        cleaned.insert(0, "classify")
-    return cleaned
+    _, steps = plan_intent(text)
+    return steps
 
 
 def reflect_answer(state: dict) -> dict | None:
     """LLM self-critique over the produced answer; additive to deterministic checks."""
+    if not _stage_enabled("reflect"):
+        return None
     messages = state.get("messages") or []
     question = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
     payload = {
@@ -145,6 +164,8 @@ def reflect_answer(state: dict) -> dict | None:
 
 def critique_claim(claim: dict) -> dict | None:
     """Independent LLM critic for the debate node; returns a verdict dict or None."""
+    if not _stage_enabled("critic"):
+        return None
     result = _complete_json(
         "You are an independent critic reviewing a risk claim made by another AI agent. Decide whether "
         "the claim is supported by the stated evidence. "

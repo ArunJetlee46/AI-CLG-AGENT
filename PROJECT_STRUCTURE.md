@@ -37,7 +37,7 @@ Role model: `student` / `lecturer` / `placement` / `admin` (granular RBAC via `r
 - **Multi-agent orchestration (LangGraph)**: Supervisor → specialist agents (Advising, Success, Resource) → Execute Agent. Specialists are **propose-only**; the **Execute Agent is the only writer**.
 - **Human-in-the-loop approvals**: every mutating operation requires an approved `ApprovalRequest` (`require_approved` gate).
 - **Immutable audit trail**: hash-chained `AuditLog` carrying the `approval_id` that authorized each write.
-- **LLM gateway with fallback**: Groq → Gemini → Ollama (`llama3.2:3b`) → local refusal fallback. Provider-aware responses (`provider` + `model`).
+- **LLM gateway with fallback**: Groq (`llama-3.3-70b-versatile`) → Gemini → Ollama (`llama3.2:3b`) → local refusal fallback. Provider-aware responses (`provider` + `model`). A real `GROQ_API_KEY` in `backend/.env` makes every call ~0.3s; offline it degrades back to Ollama/rules automatically. Agent reasoning stages (router+planner fused into one call, reflect, LLM debate critic) are config-gated via `AGENT_LLM_REASONING_STAGES` and capped at `llm_reasoning_max_tokens`; the LLM debate critic is off by default.
 - **Hybrid RAG**: keyword + vector retrieval (Chroma/Qdrant) with grounded answers and citations; `provider: "college-ai"` curriculum RAG in-process.
 - **Synthetic data generator**: deterministic 500-student / 40-course dataset (`python -m synthetic.cli`).
 - **Prerequisite CTE traversal**: recursive-CTE prerequisite chain with eligibility advising.

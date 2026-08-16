@@ -44,8 +44,11 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 120
     llm_circuit_breaker_failures: int = 3
     llm_down_cooldown_seconds: int = 15  # skip all providers after a total outage, until this window passes
+    llm_reasoning_max_tokens: int = 120  # cap generation for router/planner/reflect/critic stages
+    ollama_keep_alive: str = "10m"  # keep the Ollama model resident between calls (kill cold-start spikes)
 
     agent_llm_reasoning: bool = True  # LLM router/planner/reflect/debate; rules when the gateway is down
+    agent_llm_reasoning_stages: str = "router,planner,reflect,critic"  # gate each reasoning stage
 
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     reranker_model: str = "bge-reranker-base"

@@ -7,6 +7,7 @@ class AgentState(TypedDict, total=False):
     memory: list[dict[str, str]]          # recent history loaded by memory node
     intent: str
     plan: list[str]                       # planner output: ordered execution steps
+    llm_plan: list[str]                   # fused router/planner LLM steps (transient, router -> planner)
     # specialist output
     agent: str
     answer: str

@@ -19,9 +19,11 @@ class _StubGateway:
     def __init__(self, *responses: str):
         self.responses = list(responses)
         self.calls: list[list[dict]] = []
+        self.max_tokens: list[int | None] = []
 
-    def complete(self, messages, tools=None):
+    def complete(self, messages, tools=None, max_tokens=None):
         self.calls.append(messages)
+        self.max_tokens.append(max_tokens)
         content = self.responses[min(len(self.calls) - 1, len(self.responses) - 1)]
         provider = "groq" if "[local-fallback]" not in content else "local-fallback"
         return LLMResponse(content=content, provider=provider, model="stub", latency_ms=0)
@@ -34,7 +36,7 @@ def _patch_gateway(monkeypatch, *responses: str) -> _StubGateway:
 
 
 # ---------------------------------------------------------------------------
-# classify_intent
+# classify_intent / plan_intent (fused router+planner)
 # ---------------------------------------------------------------------------
 
 
@@ -58,11 +60,40 @@ def test_classify_ignores_non_json(monkeypatch) -> None:
     assert reasoning.classify_intent("anything") is None
 
 
+def test_plan_intent_fuses_intent_and_steps_in_one_call(monkeypatch) -> None:
+    stub = _patch_gateway(monkeypatch, '{"intent": "resources", "steps": ["classify", "analyze", "propose"]}')
+    assert reasoning.plan_intent("build a timetable for CS301") == (
+        "resources",
+        ["classify", "analyze", "propose"],
+    )
+    assert len(stub.calls) == 1  # fused: one LLM call instead of two
+
+
+def test_plan_intent_falls_back_when_gateway_down(monkeypatch) -> None:
+    _patch_gateway(monkeypatch, "[local-fallback] no provider reachable")
+    assert reasoning.plan_intent("anything") == (None, None)
+
+
+def test_plan_intent_planner_disabled_still_returns_intent(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "agent_llm_reasoning_stages", "router")
+    _patch_gateway(monkeypatch, '{"intent": "success", "steps": ["classify", "analyze"]}')
+    intent, steps = reasoning.plan_intent("who is at risk")
+    assert intent == "success"
+    assert steps is None  # planner stage off -> rules produce the plan
+
+
+def test_reasoning_calls_are_max_tokens_capped(monkeypatch) -> None:
+    stub = _patch_gateway(monkeypatch, '{"intent": "knowledge"}')
+    reasoning.classify_intent("who teaches CS301")
+    assert stub.max_tokens == [settings.llm_reasoning_max_tokens]
+
+
 def test_router_uses_rules_when_gateway_down(monkeypatch) -> None:
     _patch_gateway(monkeypatch, "[local-fallback] no provider reachable")
     state = {"messages": [{"role": "user", "content": "which students are at risk of dropping out"}]}
     router_node(state)
     assert state["intent"] == "success"
+    assert state["llm_plan"] is None
 
 
 def test_router_uses_llm_when_gateway_returns_intent(monkeypatch) -> None:
@@ -70,6 +101,16 @@ def test_router_uses_llm_when_gateway_returns_intent(monkeypatch) -> None:
     state = {"messages": [{"role": "user", "content": "who teaches CS301"}]}
     router_node(state)
     assert state["intent"] == "resources"  # LLM overrides the keyword rule
+
+
+def test_planner_reuses_router_llm_plan_single_call(monkeypatch) -> None:
+    stub = _patch_gateway(monkeypatch, '{"intent": "academic", "steps": ["classify", "query_db"]}')
+    state = {"messages": [{"role": "user", "content": "what courses exist"}]}
+    router_node(state)
+    planner_node(state)
+    assert state["intent"] == "academic"
+    assert state["plan"] == ["classify", "query_db"]
+    assert len(stub.calls) == 1  # router+planner share one LLM call
 
 
 def test_reasoning_disabled_skips_gateway(monkeypatch) -> None:
@@ -105,13 +146,6 @@ def test_planner_uses_rules_when_gateway_down(monkeypatch) -> None:
     state = {"intent": "academic", "messages": [{"role": "user", "content": "what courses exist and what is the timetable"}]}
     planner_node(state)
     assert any("multi-domain" in step for step in state["plan"])
-
-
-def test_planner_uses_llm_plan_when_available(monkeypatch) -> None:
-    _patch_gateway(monkeypatch, '{"steps": ["classify", "query_db"]}')
-    state = {"intent": "academic", "messages": [{"role": "user", "content": "what courses exist"}]}
-    planner_node(state)
-    assert state["plan"] == ["classify", "query_db"]
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +190,13 @@ def test_critique_uses_llm_verdict(monkeypatch) -> None:
 def test_critique_rejects_bad_verdict(monkeypatch) -> None:
     _patch_gateway(monkeypatch, '{"verdict": "totally-unsupported", "confidence": 0.9}')
     assert reasoning.critique_claim({"risk_level": "high"}) is None
+
+
+def test_critique_disabled_when_stage_off(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "agent_llm_reasoning_stages", "router,planner,reflect")
+    stub = _patch_gateway(monkeypatch, '{"verdict": "agree", "confidence": 0.8}')
+    assert reasoning.critique_claim({"risk_level": "high"}) is None
+    assert stub.calls == []
 
 
 def test_debate_falls_back_to_sql_only_when_gateway_down(monkeypatch) -> None:

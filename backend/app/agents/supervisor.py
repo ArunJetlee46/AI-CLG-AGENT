@@ -8,7 +8,7 @@ from app.agents.academic_ops import AcademicOpsAgent
 from app.agents.debate import debate_node
 from app.agents.execute import ExecuteAgent
 from app.agents.memory import get_memory, memory_node
-from app.agents.reasoning import build_plan, classify_intent, reflect_answer
+from app.agents.reasoning import plan_intent, reflect_answer
 from app.agents.specialists import KnowledgeAgent, ResourceOptimizerAgent, StudentSuccessAgent
 from app.agents.state import AgentState
 from app.core.audit import create_decision_card, record_event
@@ -36,20 +36,18 @@ def _classify(text: str) -> str:
 
 def router_node(state: AgentState) -> AgentState:
     text = state["messages"][-1]["content"]
-    state["intent"] = classify_intent(text) or _classify(text)
+    intent, plan = plan_intent(text)
+    state["intent"] = intent or _classify(text)
+    state["llm_plan"] = plan
     return state
 
 
 def planner_node(state: AgentState) -> AgentState:
-    """Decomposes the request into ordered execution steps.
-
-    LLM planner first (config-gated, whitelisted vocabulary); falls back to the
-    deterministic rule planner when the gateway is down or returns an unsafe
-    plan. The plan is audited with the decision card.
+    """Uses the fused router/planner result when the LLM stage ran; otherwise the
+    deterministic rule planner. The plan is audited with the decision card.
     """
-    llm_plan = build_plan(state)
-    if llm_plan:
-        state["plan"] = llm_plan
+    if state.get("llm_plan"):
+        state["plan"] = state["llm_plan"]
         return state
 
     text = state["messages"][-1]["content"].lower()
