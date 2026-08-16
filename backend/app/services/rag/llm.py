@@ -1,7 +1,8 @@
+import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -65,21 +66,28 @@ class LLMGateway:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]] | None = None,
         max_tokens: int | None = None,
+        on_token: Callable[[str], None] | None = None,
     ) -> LLMResponse:
         if time.time() < self._all_down_until:
-            return self._rule_fallback(messages)
+            response = self._rule_fallback(messages)
+            if on_token:
+                on_token(response.content)
+            return response
         errors: list[str] = []
         for name in settings.llm_providers:
             if self._is_tripped(name):
                 continue
             try:
-                return self._call(name, messages, tools, max_tokens)
+                return self._call(name, messages, tools, max_tokens, on_token)
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{name}: {exc}")
                 self._record_failure(name)
         logger.warning("All LLM providers failed (%s); using local rule-based fallback", "; ".join(errors))
         self._all_down_until = time.time() + settings.llm_down_cooldown_seconds
-        return self._rule_fallback(messages)
+        response = self._rule_fallback(messages)
+        if on_token:
+            on_token(response.content)
+        return response
 
     def _call(
         self,
@@ -87,9 +95,12 @@ class LLMGateway:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]] | None,
         max_tokens: int | None,
+        on_token: Callable[[str], None] | None = None,
     ) -> LLMResponse:
         started = time.perf_counter()
         if name == "groq":
+            if on_token is not None:
+                return self._groq_stream(messages, started, max_tokens, on_token)
             return self._groq(messages, started, max_tokens)
         if name == "gemini":
             return self._gemini(messages, started, max_tokens)
@@ -122,6 +133,60 @@ class LLMGateway:
             latency_ms=int((time.perf_counter() - started) * 1000),
             tokens_in=data.get("usage", {}).get("prompt_tokens", 0),
             tokens_out=data.get("usage", {}).get("completion_tokens", 0),
+        )
+
+    def _groq_stream(
+        self,
+        messages: list[dict[str, str]],
+        started: float,
+        max_tokens: int | None,
+        on_token: Callable[[str], None],
+    ) -> LLMResponse:
+        """SSE streaming over the OpenAI-compatible Groq endpoint. Each content
+        delta is delivered to on_token as it arrives."""
+        if not settings.groq_api_key:
+            raise RuntimeError("GROQ_API_KEY not configured")
+        body: dict[str, Any] = {
+            "model": settings.groq_model,
+            "messages": messages,
+            "temperature": 0.3,
+            "stream": True,
+        }
+        if max_tokens:
+            body["max_tokens"] = max_tokens
+        pieces: list[str] = []
+        tokens_in = 0
+        tokens_out = 0
+        with httpx.stream(
+            "POST",
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+            json=body,
+            timeout=_httpx_timeout(),
+        ) as resp:
+            resp.raise_for_status()
+            for line in resp.iter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                obj = json.loads(data)
+                delta = obj["choices"][0]["delta"].get("content") or ""
+                if delta:
+                    pieces.append(delta)
+                    on_token(delta)
+                if obj.get("usage"):
+                    tokens_in = obj["usage"].get("prompt_tokens", 0)
+                    tokens_out = obj["usage"].get("completion_tokens", 0)
+        content = "".join(pieces)
+        return LLMResponse(
+            content=content,
+            provider="groq",
+            model=settings.groq_model,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            tokens_in=tokens_in,
+            tokens_out=tokens_out or len(content.split()),
         )
 
     def _gemini(

@@ -25,9 +25,11 @@ class FakeLLM:
     def __init__(self) -> None:
         self.calls = []
 
-    def complete(self, messages, tools=None) -> LLMResponse:
+    def complete(self, messages, tools=None, on_token=None) -> LLMResponse:
         self.calls.append(messages)
         content = "The library closes at 22:00 according to the library policy [0]."
+        if on_token:
+            on_token(content)
         return LLMResponse(content=content, provider="fake", model="test", latency_ms=1)
 
 

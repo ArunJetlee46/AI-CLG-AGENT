@@ -233,6 +233,7 @@ class SupervisorGraph:
         actor_id: str = "",
         student_id: str = "",
         session_id: str | None = None,
+        on_token=None,
     ) -> AgentState:
         initial: AgentState = {
             "messages": [{"role": "user", "content": message}],
@@ -241,6 +242,7 @@ class SupervisorGraph:
             "actor_id": actor_id,
             "student_id": student_id,
             "session_id": session_id,
+            "stream_callback": on_token,
             "requires_approval": False,
         }
         state = self.graph.invoke(initial)

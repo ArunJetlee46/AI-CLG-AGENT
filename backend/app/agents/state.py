@@ -31,3 +31,4 @@ class AgentState(TypedDict, total=False):
     actor_id: str
     student_id: str                  # resolved caller student id ("" when not a student)
     session_id: str | None           # chat thread id (None = single default thread)
+    stream_callback: Any             # token sink for SSE answers (set by streaming chat)

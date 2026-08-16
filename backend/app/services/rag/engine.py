@@ -109,12 +109,13 @@ class RAGService:
 
     # ---- generation ------------------------------------------------------
 
-    def answer(self, query: str, require_grounded: bool = True) -> tuple[str, list[str], LLMResponse]:
+    def answer(self, query: str, require_grounded: bool = True, on_token=None) -> tuple[str, list[str], LLMResponse]:
         """Grounded RAG answer with citations.
 
         Hallucination guard: when no context was retrieved and require_grounded is
         True, we never let the LLM free-generate on an empty context - we return a
-        safe extractive/refusal response instead.
+        safe extractive/refusal response instead. When on_token is provided the
+        final LLM generation streams its tokens through the callback.
         """
         chunks = self.retrieve(query)
         citations = [self._cite(i, c) for i, c in enumerate(chunks)]
@@ -135,7 +136,8 @@ class RAGService:
                 [
                     {"role": "system", "content": "You are Beru Campus AI, a university assistant. Answer helpfully and briefly."},
                     {"role": "user", "content": query},
-                ]
+                ],
+                on_token=on_token,
             )
             return response.content, [], response
 
@@ -150,7 +152,8 @@ class RAGService:
             [
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"CONTEXT:\n{context}\n\nQUESTION: {query}"},
-            ]
+            ],
+            on_token=on_token,
         )
 
         if response.provider == "local-fallback":
