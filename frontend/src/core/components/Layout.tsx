@@ -17,6 +17,7 @@
   LogOut,
   Menu,
   Presentation,
+  Puzzle,
   Rocket,
   ScrollText,
   Search,
@@ -44,6 +45,7 @@
   Landmark,
   Waves,
   X,
+  GitBranch,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -53,6 +55,8 @@ import { authApi } from "@/core/lib/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
 import { NotificationBell } from "@/core/components/NotificationBell";
+import { PWAUpdateNotification } from "@/core/components/PWAUpdateNotification";
+import { DarkModeToggle } from "@/core/components/DarkModeToggle";
 
 const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: typeof Bot; roles?: string[] }[] }[] = [
   {
@@ -72,30 +76,32 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
     ],
   },
   {
-    title: "Assistants",
-    items: [
-      { to: "/chat", label: "AI Assistant", icon: Bot, roles: ["student", "lecturer", "placement"] },
-      { to: "/student", label: "Student Home", icon: GraduationCap, roles: ["student"] },
-      { to: "/student/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["student"] },
-      { to: "/student/insights", label: "My Insights", icon: TrendingUp, roles: ["student"] },
-      { to: "/student/community", label: "Community", icon: Trophy, roles: ["student"] },
-      { to: "/student/exam-prep", label: "Exam Prep", icon: BookOpen, roles: ["student"] },
-      { to: "/student/assignment-assistant", label: "Assignments", icon: ClipboardList, roles: ["student"] },
-      { to: "/student/mock-interview", label: "Mock Interview", icon: Users, roles: ["student"] },
-      { to: "/student/resume-ats", label: "Resume ATS", icon: FileText, roles: ["student"] },
-      { to: "/student/project-mentor", label: "Project Mentor", icon: Rocket, roles: ["student"] },
-      { to: "/faculty", label: "Faculty", icon: Users, roles: ["lecturer"] },
-      { to: "/faculty/copilot", label: "Faculty Copilot", icon: Bot, roles: ["lecturer"] },
-      { to: "/faculty/announcements", label: "Announcements", icon: Megaphone, roles: ["lecturer"] },
-      { to: "/faculty/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["lecturer"] },
-      { to: "/faculty/audit", label: "Audit Log", icon: ScrollText, roles: ["lecturer"] },
-      { to: "/faculty/intelligence", label: "Faculty Intelligence", icon: Brain, roles: ["lecturer"] },
-      { to: "/faculty/course-reports", label: "Course Reports", icon: FileBarChart, roles: ["lecturer"] },
-      { to: "/faculty/remedial", label: "Remedial Plans", icon: LifeBuoy, roles: ["lecturer"] },
-      { to: "/faculty/similarity", label: "Similarity Check", icon: CopyX, roles: ["lecturer"] },
-      { to: "/admin", label: "Command Center", icon: ShieldCheck, roles: ["admin"] },
-    ],
-  },
+      title: "Assistants",
+      items: [
+        { to: "/chat", label: "AI Assistant", icon: Bot, roles: ["student", "lecturer", "placement"] },
+        { to: "/student", label: "Student Home", icon: GraduationCap, roles: ["student"] },
+        { to: "/student/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["student"] },
+        { to: "/student/insights", label: "My Insights", icon: TrendingUp, roles: ["student"] },
+        { to: "/student/community", label: "Community", icon: Trophy, roles: ["student"] },
+        { to: "/student/exam-prep", label: "Exam Prep", icon: BookOpen, roles: ["student"] },
+        { to: "/student/assignment-assistant", label: "Assignments", icon: ClipboardList, roles: ["student"] },
+        { to: "/student/mock-interview", label: "Mock Interview", icon: Users, roles: ["student"] },
+        { to: "/student/resume-ats", label: "Resume ATS", icon: FileText, roles: ["student"] },
+        { to: "/student/project-mentor", label: "Project Mentor", icon: Rocket, roles: ["student"] },
+        { to: "/student/degree-audit", label: "Degree Audit", icon: Award, roles: ["student"] },
+        { to: "/faculty", label: "Faculty", icon: Users, roles: ["lecturer"] },
+        { to: "/faculty/copilot", label: "Faculty Copilot", icon: Bot, roles: ["lecturer"] },
+        { to: "/faculty/announcements", label: "Announcements", icon: Megaphone, roles: ["lecturer"] },
+        { to: "/faculty/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["lecturer"] },
+        { to: "/faculty/audit", label: "Audit Log", icon: ScrollText, roles: ["lecturer"] },
+        { to: "/faculty/intelligence", label: "Faculty Intelligence", icon: Brain, roles: ["lecturer"] },
+        { to: "/faculty/course-reports", label: "Course Reports", icon: FileBarChart, roles: ["lecturer"] },
+        { to: "/faculty/remedial", label: "Remedial Plans", icon: LifeBuoy, roles: ["lecturer"] },
+        { to: "/faculty/similarity", label: "Similarity Check", icon: CopyX, roles: ["lecturer"] },
+        { to: "/admin", label: "Command Center", icon: ShieldCheck, roles: ["admin"] },
+        { to: "/agent-trace", label: "Agent Trace", icon: GitBranch, roles: ["admin", "lecturer"] },
+      ],
+    },
   {
     title: "Faculty Tools",
     items: [
@@ -107,6 +113,7 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/faculty/tools/code-review", label: "Code Review", icon: Code2, roles: ["lecturer"] },
       { to: "/faculty/tools/lab-assistant", label: "Lab Assistant", icon: FlaskConical, roles: ["lecturer"] },
       { to: "/faculty/tools/viva-questions", label: "Viva Questions", icon: TestTube2, roles: ["lecturer"] },
+      { to: "/faculty/intervention-effectiveness", label: "Intervention Effectiveness", icon: TrendingUp, roles: ["lecturer", "admin"] },
     ],
   },
   {
@@ -139,6 +146,7 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/admin/digital-twin", label: "Digital Twin", icon: Waves, roles: ["admin"] },
       { to: "/admin/timetable", label: "Timetable Optimizer", icon: CalendarClock, roles: ["admin"] },
       { to: "/admin/evaluation", label: "Evaluation Center", icon: ClipboardCheck, roles: ["admin"] },
+      { to: "/admin/agent-plugins", label: "Agent Plugins", icon: Puzzle, roles: ["admin"] },
     ],
   },
 ];
@@ -426,6 +434,7 @@ export function Layout() {
           <p className="truncate text-sm font-bold">Beru Campus AI</p>
           <span className="ml-auto inline-flex lg:hidden">
             <NotificationBell />
+            <DarkModeToggle />
           </span>
           <button
             type="button"
@@ -461,6 +470,7 @@ export function Layout() {
               </nav>
               <span className="hidden shrink-0 lg:inline-flex">
                 <NotificationBell />
+                <DarkModeToggle />
               </span>
             </div>
           )}
@@ -471,6 +481,7 @@ export function Layout() {
           </div>
         </main>
       </div>
+      <PWAUpdateNotification />
     </div>
   );
 }

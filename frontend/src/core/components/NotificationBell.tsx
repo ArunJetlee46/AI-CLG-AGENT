@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { notificationsApi, type NotificationItem } from "@/core/lib/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { cn } from "@/core/lib/utils";
+import { useWebSocket } from "@/core/hooks/useWebSocket";
 
 const TYPE_STYLES: Record<string, { icon: LucideIcon; cls: string }> = {
   risk: { icon: AlertTriangle, cls: "bg-red-100 text-red-600" },
@@ -36,12 +37,28 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function createNotificationItem(data: unknown): NotificationItem {
+  const d = data as Record<string, unknown>;
+  return {
+    id: `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: (d.type as string) ?? "announcement",
+    severity: (d.severity as string) ?? "info",
+    title: (d.title as string) ?? "New notification",
+    body: (d.body as string) ?? "",
+    read: false,
+    created_at: new Date().toISOString(),
+    link: (d.link as string) ?? undefined,
+  };
+}
+
 export function NotificationBell() {
   const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const [entries, setEntries] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const { data } = useQuery({
     queryKey: ["notifs"],
@@ -49,6 +66,13 @@ export function NotificationBell() {
     enabled: !!token,
     refetchInterval: 60_000,
   });
+
+  useEffect(() => {
+    if (data?.entries) {
+      setEntries(data.entries);
+      setUnreadCount(data.unread_count ?? 0);
+    }
+  }, [data]);
 
   const markRead = useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id, token!),
@@ -58,6 +82,18 @@ export function NotificationBell() {
   const markAll = useMutation({
     mutationFn: () => notificationsApi.markAllRead(token!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifs"] }),
+  });
+
+  const handleWsNotification = useCallback((_event: string, data: unknown) => {
+    const newItem = createNotificationItem(data);
+    setEntries((prev) => [newItem, ...prev]);
+    setUnreadCount((prev) => prev + 1);
+    qc.invalidateQueries({ queryKey: ["notifs"] });
+  }, [qc]);
+
+  useWebSocket({
+    onNotification: handleWsNotification,
+    onConnect: () => qc.invalidateQueries({ queryKey: ["notifs"] }),
   });
 
   useEffect(() => {
@@ -76,9 +112,6 @@ export function NotificationBell() {
     };
   }, [open]);
 
-  const unread = data?.unread_count ?? 0;
-  const entries = data?.entries ?? [];
-
   function openItem(item: NotificationItem) {
     if (!item.read) markRead.mutate(item.id);
     setOpen(false);
@@ -89,14 +122,14 @@ export function NotificationBell() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+        aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
         onClick={() => setOpen((v) => !v)}
         className="relative grid h-9 w-9 place-items-center rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
       >
         <Bell className="h-4 w-4" />
-        {unread > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {unread > 99 ? "99+" : unread}
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
@@ -105,7 +138,7 @@ export function NotificationBell() {
         <div className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,26rem)] overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-2xl shadow-black/10">
           <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2">
             <p className="text-sm font-bold">Notifications</p>
-            {unread > 0 && (
+            {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => markAll.mutate()}

@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import time
+import uuid
 from typing import Protocol
 
 from app.config import get_settings
@@ -105,6 +106,18 @@ class VectorStore(Protocol):
 class QdrantStore:
     backend = "qdrant"
 
+    @staticmethod
+    def _to_point_id(doc_id) -> str | int:
+        """Qdrant accepts only unsigned-integer or UUID point ids. Map the
+        string chunk ids (e.g. 'about:Beru Campus AI#0') deterministically to a
+        UUID so upserts and idempotency probes (has) address the same point."""
+        if isinstance(doc_id, int):
+            return doc_id
+        text = str(doc_id)
+        if text.isdigit():
+            return int(text)
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, text))
+
     def __init__(self, collection: str | None = None) -> None:
         from qdrant_client import QdrantClient
         from qdrant_client.models import Distance, VectorParams
@@ -141,14 +154,14 @@ class QdrantStore:
 
         self._client.upsert(
             collection_name=self._collection,
-            points=[PointStruct(id=doc_id, vector=embedding, payload=payload)],
+            points=[PointStruct(id=self._to_point_id(doc_id), vector=embedding, payload=payload)],
         )
 
     def has(self, doc_id: str) -> bool:
         retrieve = getattr(self._client, "retrieve", None)
         if retrieve is None:
             return False
-        return bool(retrieve(collection_name=self._collection, ids=[doc_id]))
+        return bool(retrieve(collection_name=self._collection, ids=[self._to_point_id(doc_id)]))
 
 
 class ChromaStore:

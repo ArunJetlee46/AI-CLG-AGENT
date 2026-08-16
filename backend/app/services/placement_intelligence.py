@@ -82,7 +82,12 @@ ROLE_BY_TYPE = {
 
 _CTC_RE = re.compile(r"(?:ctc|package|salary|compensation)\D{0,8}?[\$₹rs\.\s]*(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*[\$₹rs\.\s]*(\d+(?:\.\d+)?)?\s*(?:lpa|cpa|inr|lakh|cr)?", re.IGNORECASE)
 _CTC_RE2 = re.compile(r"(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)\s*(?:lpa|cpa)", re.IGNORECASE)
-_SKILL_RE = re.compile(r"|".join(sorted({kw for kws in SKILL_CATEGORIES.values() for kw in kws}, key=len, reverse=True)), re.IGNORECASE)
+_SKILL_RE = re.compile(
+    r"|".join(
+        sorted({re.escape(kw) for kws in SKILL_CATEGORIES.values() for kw in kws}, key=len, reverse=True)
+    ),
+    re.IGNORECASE,
+)
 
 
 def _parse_skills(text: str) -> list[str]:

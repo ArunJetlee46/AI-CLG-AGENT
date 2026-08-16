@@ -6,7 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
-import { agentApi, type ChatResponse } from "@/core/lib/api";
+import { agentApi } from "@/core/lib/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -51,35 +51,69 @@ export function Chat() {
     event.preventDefault();
     const question = (preset ?? input).trim();
     if (!question || !token) return;
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setInput("");
     setBusy(true);
+    const assistantIndexRef = { current: 0 };
+    setMessages((prev) => {
+      assistantIndexRef.current = prev.length;
+      return [...prev, { role: "user", content: question }, { role: "assistant", content: "" }];
+    });
+    let metaChips = "";
+
+    const patchAnswer = (delta: string) =>
+      setMessages((prev) =>
+        prev.map((message, i) =>
+          i === assistantIndexRef.current ? { ...message, content: message.content + delta } : message
+        )
+      );
+
     try {
-      const response: ChatResponse = await agentApi.chat(question, token);
-      const via = response.provider
-        ? ` via ${response.provider === "local-fallback" ? "local fallback" : response.provider} (${response.model})`
-        : "";
-      const chips = [
-        `intent ${response.intent}`,
-        response.agent,
-        via || undefined,
-        response.approval_id ? `approval ${response.approval_id.slice(0, 8)}` : undefined,
-        response.decision_card_id ? `card ${response.decision_card_id.slice(0, 8)}` : undefined,
-      ].filter(Boolean);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: response.answer, meta: chips.join(" · ") },
-      ]);
+      await agentApi.chatStream(question, token, (event) => {
+        if (event.type === "chunk") {
+          patchAnswer(event.content);
+        } else if (event.type === "meta") {
+          const via = event.provider
+            ? ` via ${event.provider === "local-fallback" ? "local fallback" : event.provider} (${event.model})`
+            : "";
+          const chips = [
+            `intent ${event.intent}`,
+            event.agent,
+            via || undefined,
+            event.approval_id ? `approval ${event.approval_id.slice(0, 8)}` : undefined,
+            event.decision_card_id ? `card ${event.decision_card_id.slice(0, 8)}` : undefined,
+          ].filter(Boolean);
+          metaChips = chips.join(" · ");
+        } else if (event.type === "error") {
+          throw new Error(event.error);
+        }
+      });
+
+      setMessages((prev) =>
+        prev.map((message, i) =>
+          i === assistantIndexRef.current ? { ...message, meta: metaChips } : message
+        )
+      );
+      const final = assistantIndexRef.current;
+      setMessages((prev) =>
+        prev.map((message, i) =>
+          i === final && !message.content.trim()
+            ? { ...message, content: "No response.", error: false }
+            : message
+        )
+      );
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Error: ${err instanceof Error ? err.message : "request failed"}`,
-          meta: "request failed",
-          error: true,
-        },
-      ]);
+      setMessages((prev) =>
+        prev.map((message, i) =>
+          i === assistantIndexRef.current
+            ? {
+                ...message,
+                content: message.content || `Error: ${err instanceof Error ? err.message : "request failed"}`,
+                meta: "request failed",
+                error: true,
+              }
+            : message
+        )
+      );
     } finally {
       setBusy(false);
     }

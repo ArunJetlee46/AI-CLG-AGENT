@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -40,6 +41,9 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 120
     llm_circuit_breaker_failures: int = 3
 
+    # Use the LLM gateway for intent routing / planning (fallback: keyword rules)
+    llm_router_enabled: bool = True
+
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     reranker_model: str = "bge-reranker-base"
     rag_top_k: int = 4
@@ -50,6 +54,8 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = "http://localhost:5000"
     prediction_model_path: str = "models/risk_model.joblib"
 
+    # Data directory - can be overridden via env var; defaults to ../data for local dev, /app/data for Docker
+    data_dir: str = "../data"
     knowledge_data_dir: str = "../data"
     knowledge_source_label: str = "Anna University AI&DS Regulations 2021"
 
@@ -73,6 +79,11 @@ class Settings(BaseSettings):
     @property
     def llm_providers(self) -> list[str]:
         return [p.strip().lower() for p in self.llm_provider_order.split(",") if p.strip()]
+
+    @property
+    def data_path(self) -> Path:
+        """Resolve data directory - works for both local dev and Docker."""
+        return Path(self.data_dir).resolve()
 
 
 @lru_cache

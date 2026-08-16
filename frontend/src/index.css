@@ -172,6 +172,37 @@ body {
   background: oklch(0.55 0.19 262 / 0.25);
 }
 
+.dark {
+  --background: oklch(0.145 0.005 256);
+  --foreground: oklch(0.985 0.002 256);
+  --card: oklch(0.205 0.005 256);
+  --card-foreground: oklch(0.985 0.002 256);
+  --muted: oklch(0.269 0.005 256);
+  --muted-foreground: oklch(0.708 0.005 256);
+  --border: oklch(0.269 0.005 256);
+  --primary: oklch(0.55 0.19 262);
+  --primary-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27);
+  --success: oklch(0.62 0.14 155);
+  --warning: oklch(0.72 0.15 75);
+  --ring: oklch(0.55 0.19 262);
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 300ms ease-out both;
+}
+
 /* Shared data-table styling: used by every <table> that opts in via .table-shell. */
 .table-shell {
   width: 100%;

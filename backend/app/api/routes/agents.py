@@ -1,10 +1,13 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.agents.supervisor import get_supervisor
 from app.api.deps import get_current_user
 from app.core.audit import record_event
-from app.db import get_db
+from app.db import SessionLocal, get_db
 from app.models.entities import User
 from app.schemas.common import ChatRequest, ChatResponse
 
@@ -38,4 +41,41 @@ def chat(body: ChatRequest, user: User = Depends(get_current_user), db: Session 
         decision_card_id=state.get("decision_card_id"),
         provider=state.get("provider", ""),
         model=state.get("model", ""),
+    )
+
+
+@router.post("/chat/stream")
+def chat_stream(body: ChatRequest, user: User = Depends(get_current_user)) -> StreamingResponse:
+    """Server-Sent-Events stream of the agent run (Tier 1.5).
+
+    Events (one JSON object per `data:` line): `intent`, `chunk` (answer
+    bursts), `meta` (final metadata), or `error`. The blocking `/chat` endpoint
+    remains as the non-streaming fallback.
+    """
+
+    supervisor = get_supervisor()
+
+    async def event_source():
+        try:
+            async for event in supervisor.stream(body.message, actor=user.username, actor_id=user.id):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as exc:  # noqa: BLE001 - stream must never die silently
+            yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
+        finally:
+            db = SessionLocal()
+            try:
+                record_event(
+                    db,
+                    actor=user.username,
+                    action="chat_streamed",
+                    entity_type="chat",
+                    payload={"message": body.message[:200]},
+                )
+            finally:
+                db.close()
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

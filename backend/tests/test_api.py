@@ -7,6 +7,7 @@ prediction endpoints.
 
 import csv
 import io
+import json
 import uuid
 
 from fastapi.testclient import TestClient
@@ -162,6 +163,47 @@ def test_audit_filter_by_action() -> None:
     assert filtered.status_code == 200
     assert filtered.json()
     assert all(row["action"] == "chat_completed" for row in filtered.json())
+
+
+# ---------------------------------------------------------------------------
+# Streaming chat (Tier 1.5)
+# ---------------------------------------------------------------------------
+
+
+def test_chat_stream_emits_intent_chunk_meta_events() -> None:
+    tokens = _login()
+    headers = _auth(tokens["access_token"])
+
+    with client.stream(
+        "POST",
+        "/api/v1/agents/chat/stream",
+        json={"message": "which students are at risk of dropout?"},
+        headers=headers,
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+
+        events = []
+        buffer = ""
+        for text in response.iter_text():
+            buffer += text
+            while "\n\n" in buffer:
+                block, buffer = buffer.split("\n\n", 1)
+                data = next((line[6:] for line in block.splitlines() if line.startswith("data: ")), None)
+                if data:
+                    events.append(json.loads(data))
+
+    types = [event["type"] for event in events]
+    assert "intent" in types
+    assert "chunk" in types
+    assert "meta" in types
+    assert "error" not in types
+
+    meta = next(event for event in events if event["type"] == "meta")
+    assert meta["intent"] == "success"
+    assert meta["citations"] == []
+    chunks = [event["content"] for event in events if event["type"] == "chunk"]
+    assert chunks, "expected at least one answer chunk"
 
 
 # ---------------------------------------------------------------------------

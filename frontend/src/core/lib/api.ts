@@ -78,6 +78,22 @@ export interface ChatResponse {
   model: string;
 }
 
+export type StreamEvent =
+  | { type: "intent"; intent: string; plan: string[] }
+  | { type: "chunk"; content: string }
+  | {
+      type: "meta";
+      intent: string;
+      agent: string;
+      citations: string[];
+      requires_approval: boolean;
+      approval_id: string | null;
+      decision_card_id: string | null;
+      provider: string;
+      model: string;
+    }
+  | { type: "error"; error: string };
+
 export interface PredictionRow {
   student_id: string;
   course_code: string;
@@ -159,6 +175,55 @@ export const authApi = {
 export const agentApi = {
   chat: (message: string, token: string) =>
     api<ChatResponse>("/agents/chat", { method: "POST", body: JSON.stringify({ message }) }, token),
+  chatStream: async (
+    message: string,
+    token: string,
+    onEvent: (event: StreamEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> => {
+    await ensureFreshToken();
+    const response = await fetch(`${BASE_URL}/agents/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message }),
+      signal,
+    });
+    if (response.status === 401) {
+      clearSession("Your session is no longer valid. Please sign in again.");
+      throw new ApiError(401, "Session expired");
+    }
+    if (!response.ok) {
+      throw new ApiError(response.status, response.statusText);
+    }
+    if (!response.body) throw new ApiError(0, "Streaming not supported");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        for (const line of block.split("\n")) {
+          if (line.startsWith("data: ")) {
+            try {
+              onEvent(JSON.parse(line.slice(6)) as StreamEvent);
+            } catch {
+              /* ignore malformed frames */
+            }
+          }
+        }
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+  },
 };
 
 export const predictionApi = {

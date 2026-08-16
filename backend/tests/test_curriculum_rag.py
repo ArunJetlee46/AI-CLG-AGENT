@@ -66,6 +66,7 @@ def chunks():
 
 @pytest.fixture(scope="module")
 def vector_store(tmp_path_factory, chunks):
+    pytest.importorskip("chromadb", reason="chromadb is an optional dependency (requirements-ml.txt)")
     store = ChromaStore(persist_dir=str(tmp_path_factory.mktemp("chroma")), collection="test_docs")
     for chunk in chunks:
         store.upsert(
