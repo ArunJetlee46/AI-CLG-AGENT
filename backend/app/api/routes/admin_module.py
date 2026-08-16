@@ -82,6 +82,15 @@ def set_safety(body: SafetyRequest, _: User = Depends(_admin)) -> dict:
     return admin_copilot.set_safety_state(execution_enabled=body.execution_enabled, read_only=body.read_only)
 
 
+@router.post("/rag-backfill")
+def rag_backfill(_: User = Depends(_admin)) -> dict:
+    """Re-render database rows into the RAG corpus on demand."""
+    from app.services.rag.backfill import backfill_from_db
+
+    stats = backfill_from_db()
+    return {"ok": True, **stats}
+
+
 # ---------------------------------------------------------------------------
 # Management
 # ---------------------------------------------------------------------------

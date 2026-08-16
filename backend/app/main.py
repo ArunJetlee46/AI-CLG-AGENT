@@ -256,6 +256,21 @@ def seed_knowledge_base() -> None:
     logger.info("Seeded knowledge base: %s", stats)
 
 
+def seed_db_rag_backfill() -> None:
+    """Render real database rows (courses, lecturers, placements, ...) into the
+    RAG corpus so answers can be grounded on the institution's actual data."""
+    if not settings.db_rag_backfill_enabled:
+        logger.info("Database RAG backfill disabled (DB_RAG_BACKFILL_ENABLED=false)")
+        return
+    try:
+        from app.services.rag.backfill import backfill_from_db
+
+        stats = backfill_from_db()
+        logger.info("Database RAG backfill complete: %s", stats)
+    except Exception as exc:  # noqa: BLE001 - a failing backfill must not stop boot
+        logger.warning("Database RAG backfill failed: %s", exc)
+
+
 def seed_curriculum_knowledge_base() -> None:
     from app.services.pipeline import ingest_curriculum
 
@@ -290,6 +305,7 @@ async def lifespan(app: FastAPI):
     seed_default_admin()
     seed_demo_users()
     seed_knowledge_base()
+    seed_db_rag_backfill()
     seed_curriculum_knowledge_base()
     yield
 

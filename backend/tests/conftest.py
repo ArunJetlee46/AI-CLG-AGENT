@@ -12,6 +12,7 @@ os.environ["CURRICULUM_RAG_ENABLED"] = "false"  # tests must not depend on the c
 os.environ["EMBEDDING_BACKEND"] = "local"  # tests never download ONNX artifacts -> hash embeddings
 os.environ["LOGIN_RATE_LIMIT"] = "10000/minute"  # suite logs in repeatedly; the 429 path is tested separately
 os.environ["CHAT_RATE_LIMIT"] = "10000/minute"  # same for the chat endpoint
+os.environ["DB_RAG_BACKFILL_ENABLED"] = "false"  # boot backfill is covered by its own unit tests
 
 import pytest
 

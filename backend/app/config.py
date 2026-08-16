@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     knowledge_data_dir: str = "../data"
     knowledge_source_label: str = "Anna University AI&DS Regulations 2021"
 
+    db_rag_backfill_enabled: bool = True  # render DB rows into the RAG corpus at boot
+
     curriculum_rag_enabled: bool = True
     curriculum_rag_jsonl: str = "../data/anna_university_aids_reg2021_rag.jsonl"
     curriculum_course_index_json: str = "../data/course_index.json"
