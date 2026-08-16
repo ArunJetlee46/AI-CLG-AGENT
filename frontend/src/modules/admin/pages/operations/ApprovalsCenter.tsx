@@ -6,6 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { toast } from "@/core/components/ui/toast";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi } from "@/modules/admin/api";
 
@@ -31,6 +32,7 @@ export function AdminApprovals() {
     mutationFn: ({ id, decision }: { id: string; decision: "approve" | "reject" }) =>
       adminApi.decideApproval(id, decision, comments[id] ?? "", token!),
     onSuccess: invalidate,
+    onError: (err) => toast.error("Decision failed", err instanceof Error ? err.message : undefined),
   });
 
   return (

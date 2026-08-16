@@ -5,6 +5,7 @@ import { useState } from "react";
 import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { toast } from "@/core/components/ui/toast";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi } from "@/modules/admin/api";
 
@@ -16,10 +17,15 @@ export function AdminBackups() {
   const list = useQuery({ queryKey: ["admin-backups"], queryFn: () => adminApi.backups(token!), enabled: !!token });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-backups"] });
 
-  const create = useMutation({ mutationFn: () => adminApi.createBackup(token!), onSuccess: invalidate });
+  const create = useMutation({
+    mutationFn: () => adminApi.createBackup(token!),
+    onSuccess: invalidate,
+    onError: (err) => toast.error("Snapshot failed", err instanceof Error ? err.message : undefined),
+  });
   const restore = useMutation({
     mutationFn: (id: string) => adminApi.restoreBackup(id, token!),
     onSuccess: (r) => { invalidate(); setMsg(r.message); setTimeout(() => setMsg(""), 6000); },
+    onError: (err) => toast.error("Restore failed", err instanceof Error ? err.message : undefined),
   });
 
   return (

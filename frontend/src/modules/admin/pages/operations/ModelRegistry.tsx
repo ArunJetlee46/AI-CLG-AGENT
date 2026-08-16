@@ -6,6 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { toast } from "@/core/components/ui/toast";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi } from "@/modules/admin/api";
 
@@ -21,8 +22,13 @@ export function AdminModelRegistry() {
   const register = useMutation({
     mutationFn: (b: { name: string; version: string }) => adminApi.registerModel(b, token!),
     onSuccess: () => { invalidate(); setName(""); setVersion(""); },
+    onError: (err) => toast.error("Register failed", err instanceof Error ? err.message : undefined),
   });
-  const activate = useMutation({ mutationFn: (id: string) => adminApi.activateModel(id, token!), onSuccess: invalidate });
+  const activate = useMutation({
+    mutationFn: (id: string) => adminApi.activateModel(id, token!),
+    onSuccess: invalidate,
+    onError: (err) => toast.error("Activation failed", err instanceof Error ? err.message : undefined),
+  });
 
   const active = list.data?.active;
 

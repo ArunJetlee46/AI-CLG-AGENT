@@ -21,13 +21,13 @@ export function AdminDashboard() {
   const token = useAuthStore((s) => s.token);
   const queryClient = useQueryClient();
 
-  const cc = useQuery({ queryKey: ["admin-cc"], queryFn: () => adminApi.commandCenter(token!), enabled: !!token });
-  const score = useQuery({ queryKey: ["admin-score"], queryFn: () => adminApi.healthScore(token!), enabled: !!token });
-  const warnings = useQuery({ queryKey: ["admin-warnings"], queryFn: () => adminApi.earlyWarnings(token!), enabled: !!token });
+  const cc = useQuery({ queryKey: ["admin-cc"], queryFn: () => adminApi.commandCenter(token!), enabled: !!token, refetchInterval: 60_000 });
+  const score = useQuery({ queryKey: ["admin-score"], queryFn: () => adminApi.healthScore(token!), enabled: !!token, refetchInterval: 60_000 });
+  const warnings = useQuery({ queryKey: ["admin-warnings"], queryFn: () => adminApi.earlyWarnings(token!), enabled: !!token, refetchInterval: 60_000 });
   const depts = useQuery({ queryKey: ["admin-depts"], queryFn: () => adminApi.departments(token!), enabled: !!token });
   const workload = useQuery({ queryKey: ["admin-workload"], queryFn: () => adminApi.facultyWorkload(token!, 8), enabled: !!token });
   const agents = useQuery({ queryKey: ["admin-agents"], queryFn: () => adminApi.agents(token!), enabled: !!token });
-  const safety = useQuery({ queryKey: ["admin-safety"], queryFn: () => adminApi.safety(token!), enabled: !!token });
+  const safety = useQuery({ queryKey: ["admin-safety"], queryFn: () => adminApi.safety(token!), enabled: !!token, refetchInterval: 60_000 });
 
   const setSafety = useMutation({
     mutationFn: (body: { execution_enabled: boolean; read_only: boolean }) => adminApi.setSafety(body, token!),

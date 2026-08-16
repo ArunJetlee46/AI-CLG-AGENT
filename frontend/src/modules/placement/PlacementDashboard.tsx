@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AlertTriangle, Briefcase, FileText, TrendingUp, Users } from "lucide-react";
 
 import { StatCard } from "@/core/components/StatCard";
+import { StatCardSkeleton } from "@/core/components/ui/skeleton";
 import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
@@ -31,24 +32,28 @@ export function PlacementDashboard() {
     queryKey: ["placement-overview"],
     queryFn: () => placementApi.overview(token!),
     enabled: !!token,
+    refetchInterval: 60_000,
   });
 
   const readiness = useQuery({
     queryKey: ["placement-readiness"],
     queryFn: () => placementApi.readiness(token!, 100),
     enabled: !!token,
+    refetchInterval: 60_000,
   });
 
   const atRisk = useQuery({
     queryKey: ["placement-at-risk"],
     queryFn: () => placementApi.atRisk(token!, 20),
     enabled: !!token,
+    refetchInterval: 60_000,
   });
 
   const report = useQuery({
     queryKey: ["placement-report"],
     queryFn: () => placementApi.report(token!),
     enabled: !!token,
+    refetchInterval: 60_000,
   });
 
   const [role, setRole] = useState("");
@@ -92,10 +97,21 @@ export function PlacementDashboard() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Batch size" value={ov?.total_students} sub="scored students" icon={Users} accent="bg-sky-100 text-sky-600" />
-        <StatCard label="Predicted placement rate" value={ov?.predicted_placement_rate != null ? `${Math.round(ov.predicted_placement_rate * 100)}%` : "—"} sub="mean placement probability" icon={TrendingUp} accent="bg-emerald-100 text-emerald-600" />
-        <StatCard label="Placement-ready" value={ov?.distribution.ready ?? "—"} sub="readiness ≥ 70" icon={Briefcase} accent="bg-violet-100 text-violet-600" />
-        <StatCard label="Unplaced risk" value={ov?.funnel.at_risk ?? "—"} sub="placement prob < 40%" icon={AlertTriangle} accent="bg-red-100 text-red-600" />
+        {overview.isLoading && !ov ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <StatCard label="Batch size" value={ov?.total_students} sub="scored students" icon={Users} accent="bg-sky-100 text-sky-600" />
+            <StatCard label="Predicted placement rate" value={ov?.predicted_placement_rate != null ? `${Math.round(ov.predicted_placement_rate * 100)}%` : undefined} sub="mean placement probability" icon={TrendingUp} accent="bg-emerald-100 text-emerald-600" />
+            <StatCard label="Placement-ready" value={ov?.distribution.ready} sub="readiness ≥ 70" icon={Briefcase} accent="bg-violet-100 text-violet-600" />
+            <StatCard label="Unplaced risk" value={ov?.funnel.at_risk} sub="placement prob < 40%" icon={AlertTriangle} accent="bg-red-100 text-red-600" />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

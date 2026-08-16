@@ -5,6 +5,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Select } from "@/core/components/ui/select";
 import { facultyApi, type TeachingMaterial as TeachingMaterialResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { CourseChips, ProviderBadge } from "./toolShared";
@@ -43,9 +44,9 @@ export function TeachingMaterial() {
           <CourseChips value={courseCode} onChange={setCourseCode} />
           <div className="flex flex-wrap items-center gap-2">
             <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Topic (e.g. Relational Algebra)" className="h-10 w-64 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm outline-none focus:border-[var(--primary)]" />
-            <select value={format} onChange={(e) => setFormat(e.target.value)} className="h-10 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm">
+            <Select value={format} onChange={(e) => setFormat(e.target.value)}>
               {["notes", "slides", "outline"].map((f) => <option key={f} value={f}>{f}</option>)}
-            </select>
+            </Select>
             <Button type="button" onClick={run} disabled={loading}>{loading ? "Generating…" : "Generate material"}</Button>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}

@@ -6,6 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { Select } from "@/core/components/ui/select";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi } from "@/modules/admin/api";
 
@@ -71,11 +72,11 @@ export function Announcements() {
           </label>
           <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">
             Audience
-            <select value={audience} onChange={(e) => setAudience(e.target.value)} className="h-10 rounded-md border border-[var(--border)] bg-transparent px-3 text-sm">
+            <Select value={audience} onChange={(e) => setAudience(e.target.value)}>
               {AUDIENCE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
             <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} /> Pin

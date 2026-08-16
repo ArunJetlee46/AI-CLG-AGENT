@@ -7,10 +7,9 @@ import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { Select } from "@/core/components/ui/select";
 import { placementApi, type DriveRow } from "@/modules/placement/api";
 import { useAuthStore } from "@/core/stores/auth";
-
-const inputCls = "w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--primary)]";
 
 export function Drives() {
   const token = useAuthStore((s) => s.token);
@@ -74,7 +73,7 @@ export function Drives() {
     const rows = d.rounds ?? [];
     return [
       { stage: "Notified", count: d.notified },
-      ...rows.map((r) => ({ stage: r.name, count: 0 })),
+      ...rows.map((r) => ({ stage: r.name, count: null as number | null })),
       { stage: "Selected", count: (d.selections ?? []).length },
     ];
   };
@@ -94,17 +93,17 @@ export function Drives() {
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-[var(--muted-foreground)]">Company</span>
-            <select className={inputCls} value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+            <Select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
               <option value="">Pick…</option>
               {(companies.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-[var(--muted-foreground)]">JD</span>
-            <select className={inputCls} value={jdId} onChange={(e) => setJdId(e.target.value)}>
+            <Select value={jdId} onChange={(e) => setJdId(e.target.value)}>
               <option value="">None…</option>
               {(jds.data ?? []).map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-[var(--muted-foreground)]">Date</span>
@@ -112,9 +111,9 @@ export function Drives() {
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-[var(--muted-foreground)]">Mode</span>
-            <select className={inputCls} value={mode} onChange={(e) => setMode(e.target.value)}>
+            <Select value={mode} onChange={(e) => setMode(e.target.value)}>
               <option>online</option><option>onsite</option><option>hybrid</option>
-            </select>
+            </Select>
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-[var(--muted-foreground)]">Location</span>
@@ -130,7 +129,7 @@ export function Drives() {
 
       {(drives.data ?? []).map((d) => {
         const stages = pipelineFor(d);
-        const max = Math.max(1, ...stages.map((s) => s.count));
+        const max = Math.max(1, ...stages.map((s) => s.count ?? 0));
         return (
           <Card key={d.id} className="card-shell">
             <CardHeader>
@@ -144,9 +143,11 @@ export function Drives() {
               <div className="flex items-end gap-3">
                 {stages.map((s) => (
                   <div key={s.stage} className="flex min-w-16 flex-1 flex-col items-center gap-1">
-                    <span className="text-sm font-bold">{s.count}</span>
+                    <span className="text-sm font-bold">{s.count ?? "—"}</span>
                     <span className="h-2 w-full overflow-hidden rounded-full bg-[var(--muted)]">
-                      <span className="block h-full rounded-full bg-[var(--primary)]" style={{ width: `${(s.count / max) * 100}%` }} />
+                      {s.count != null && (
+                        <span className="block h-full rounded-full bg-[var(--primary)]" style={{ width: `${(s.count / max) * 100}%` }} />
+                      )}
                     </span>
                     <span className="truncate text-[11px] text-[var(--muted-foreground)]">{s.stage}</span>
                   </div>
@@ -182,12 +183,12 @@ export function Drives() {
                   <div className="flex flex-wrap items-end gap-2">
                     <div className="flex min-w-40 flex-1 flex-col gap-1">
                       <span className="text-[11px] text-[var(--muted-foreground)]">Student</span>
-                      <select className={inputCls} value={selStudent} onChange={(e) => setSelStudent(e.target.value)}>
+                      <Select value={selStudent} onChange={(e) => setSelStudent(e.target.value)}>
                         <option value="">Pick a shortlisted student…</option>
                         {(readiness.data ?? []).slice(0, 100).map((r) => (
                           <option key={r.student_id} value={r.student_id}>{r.student_id} · {r.band}</option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-[11px] text-[var(--muted-foreground)]">Round reached</span>

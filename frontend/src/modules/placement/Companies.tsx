@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Building2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
@@ -36,7 +37,9 @@ export function Companies() {
         ))}
       </div>
       {companies.data?.length === 0 && (
-        <p className="text-sm text-[var(--muted-foreground)]">No companies yet — add one from the <a className="text-[var(--primary)]" href="#/placement/jd">JD Analyzer</a> page.</p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          No companies yet — add one from the <Link to="/placement/jd" className="text-[var(--primary)] hover:underline">JD Analyzer</Link> page.
+        </p>
       )}
     </div>
   );

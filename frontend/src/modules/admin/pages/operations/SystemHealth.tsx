@@ -4,6 +4,8 @@ import { HeartPulse } from "lucide-react";
 import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { ErrorState } from "@/core/components/ui/error-state";
+import { Skeleton } from "@/core/components/ui/skeleton";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi } from "@/modules/admin/api";
 
@@ -19,6 +21,7 @@ export function AdminSystemHealth() {
     queryKey: ["admin-health"],
     queryFn: () => adminApi.systemHealth(token!),
     enabled: !!token,
+    refetchInterval: 30_000,
   });
   const d = q.data;
 
@@ -39,12 +42,35 @@ export function AdminSystemHealth() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Overall status:
-            <span className={`rounded-full px-3 py-0.5 text-sm font-semibold ${statusStyles[d?.overall ?? ""] ?? "bg-[var(--muted)]"}`}>
-              {(d?.overall ?? "loading").toUpperCase()}
-            </span>
+            {d ? (
+              <span className={`rounded-full px-3 py-0.5 text-sm font-semibold ${statusStyles[d.overall] ?? "bg-[var(--muted)]"}`}>
+                {d.overall.toUpperCase()}
+              </span>
+            ) : (
+              <Skeleton className="h-6 w-28 rounded-full" />
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {q.isError && !d && (
+            <div className="md:col-span-2">
+              <ErrorState title="Could not load system health" onRetry={() => q.refetch()} />
+            </div>
+          )}
+          {q.isLoading && !d && (
+            <>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-2 rounded-lg border border-[var(--border)] p-3">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-2.5 w-2.5 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+              ))}
+            </>
+          )}
           {d
             ? Object.entries(d.checks).map(([name, c]) => (
                 <div key={name} className="rounded-lg border border-[var(--border)] p-3">
@@ -66,6 +92,8 @@ export function AdminSystemHealth() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
+            {q.isLoading && !d &&
+              Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-28 rounded-lg" />)}
             {d
               ? Object.entries(d.counts).map(([k, v]) => (
                   <div key={k} className="rounded-lg bg-[var(--muted)] px-4 py-2">

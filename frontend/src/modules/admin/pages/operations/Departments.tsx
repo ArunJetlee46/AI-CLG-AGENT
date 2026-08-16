@@ -24,7 +24,7 @@ export function AdminDepartments() {
         <StatCard label="Departments" value={d?.count} sub="with student records" icon={Building2} accent="bg-sky-100 text-sky-600" />
         <StatCard label="Programs" value={d?.all_programs.length} sub="full program list" icon={Building2} accent="bg-violet-100 text-violet-600" />
         <StatCard label="Students" value={d?.departments.reduce((a, b) => a + b.students, 0) ?? d?.departments.length} icon={Building2} accent="bg-emerald-100 text-emerald-600" />
-        <StatCard label="Avg pass rate" value={`${d?.departments.length ? Math.round((d.departments.reduce((a, b) => a + b.pass_rate, 0) / d.departments.length) * 10) / 10 : null}%`} icon={Building2} accent="bg-amber-100 text-amber-600" />
+        <StatCard label="Avg pass rate" value={d?.departments.length ? `${Math.round((d.departments.reduce((a, b) => a + b.pass_rate, 0) / d.departments.length) * 10) / 10}%` : "—"} icon={Building2} accent="bg-amber-100 text-amber-600" />
       </div>
 
       <Card>

@@ -5,8 +5,11 @@ import { AlertTriangle, BookOpen, ClipboardList, HeartPulse, TrendingDown, Users
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { Select } from "@/core/components/ui/select";
 import { PageHeader } from "@/core/components/PageHeader";
 import { StatCard } from "@/core/components/StatCard";
+import { StatCardSkeleton } from "@/core/components/ui/skeleton";
+import { toast } from "@/core/components/ui/toast";
 import { facultyApi, type AtRiskStudent, type CourseHealth, type InterventionProposal } from "@/modules/faculty/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
@@ -25,10 +28,10 @@ export function FacultyDashboard() {
   const token = useAuthStore((s) => s.token);
   const queryClient = useQueryClient();
 
-  const me = useQuery({ queryKey: ["faculty-me"], queryFn: () => facultyApi.me(token!), enabled: !!token });
-  const overview = useQuery({ queryKey: ["faculty-overview"], queryFn: () => facultyApi.overview(token!), enabled: !!token });
-  const atRisk = useQuery({ queryKey: ["faculty-at-risk"], queryFn: () => facultyApi.atRisk(token!), enabled: !!token });
-  const interventions = useQuery({ queryKey: ["faculty-interventions"], queryFn: () => facultyApi.interventions(token!), enabled: !!token });
+  const me = useQuery({ queryKey: ["faculty-me"], queryFn: () => facultyApi.me(token!), enabled: !!token, refetchInterval: 60_000 });
+  const overview = useQuery({ queryKey: ["faculty-overview"], queryFn: () => facultyApi.overview(token!), enabled: !!token, refetchInterval: 60_000 });
+  const atRisk = useQuery({ queryKey: ["faculty-at-risk"], queryFn: () => facultyApi.atRisk(token!), enabled: !!token, refetchInterval: 60_000 });
+  const interventions = useQuery({ queryKey: ["faculty-interventions"], queryFn: () => facultyApi.interventions(token!), enabled: !!token, refetchInterval: 60_000 });
 
   const [selectedCourse, setSelectedCourse] = useState("");
   const [health, setHealth] = useState<CourseHealth | null>(null);
@@ -75,8 +78,8 @@ export function FacultyDashboard() {
       await facultyApi.decide(id, decision, token);
       queryClient.invalidateQueries({ queryKey: ["faculty-interventions"] });
       queryClient.invalidateQueries({ queryKey: ["faculty-at-risk"] });
-    } catch {
-      // approval errors surface in the list reload
+    } catch (err) {
+      toast.error("Decision failed", err instanceof Error ? err.message : "Could not save decision");
     }
   };
 
@@ -86,16 +89,27 @@ export function FacultyDashboard() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Faculty Copilot"
-        subtitle={me.data ? `${me.data.staff_id} · ${me.data.department} · ${me.data.course_count} courses · ${me.data.student_count} students` : "Loading..."}
+        subtitle={me.data ? `${me.data.staff_id} · ${me.data.department} · ${me.data.course_count} courses · ${me.data.student_count} students` : "Faculty workspace"}
         icon={Users}
         accent="bg-violet-100 text-violet-600"
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Students" value={me.data?.student_count} sub="across your courses" icon={Users} accent="bg-sky-100 text-sky-600" />
-        <StatCard label="Courses" value={me.data?.course_count} sub="in your workload" icon={BookOpen} accent="bg-violet-100 text-violet-600" />
-        <StatCard label="At risk" value={summary?.at_risk} sub="high-risk flags" icon={AlertTriangle} accent="bg-red-100 text-red-600" />
-        <StatCard label="Declining courses" value={overview.data?.trends.length} sub="negative attendance trend" icon={TrendingDown} accent="bg-amber-100 text-amber-600" />
+        {me.isLoading && !me.data ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <StatCard label="Students" value={me.data?.student_count} sub="across your courses" icon={Users} accent="bg-sky-100 text-sky-600" />
+            <StatCard label="Courses" value={me.data?.course_count} sub="in your workload" icon={BookOpen} accent="bg-violet-100 text-violet-600" />
+            <StatCard label="At risk" value={summary?.at_risk} sub="high-risk flags" icon={AlertTriangle} accent="bg-red-100 text-red-600" />
+            <StatCard label="Declining courses" value={overview.data?.trends.length} sub="negative attendance trend" icon={TrendingDown} accent="bg-amber-100 text-amber-600" />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -107,28 +121,28 @@ export function FacultyDashboard() {
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-md border border-[var(--border)] p-3">
                 <div className="text-xs text-[var(--muted-foreground)]">Students</div>
-                <div className="text-xl font-semibold">{summary?.students ?? "..."}</div>
+                <div className="text-xl font-semibold">{summary?.students ?? "—"}</div>
               </div>
               <div className="rounded-md border border-[var(--border)] p-3">
                 <div className="text-xs text-[var(--muted-foreground)]">Average</div>
-                <div className="text-xl font-semibold">{summary?.average ?? "-"}</div>
+                <div className="text-xl font-semibold">{summary?.average ?? "—"}</div>
               </div>
               <div className="rounded-md border border-[var(--border)] p-3">
                 <div className="text-xs text-[var(--muted-foreground)]">Pass rate</div>
                 <div className="text-xl font-semibold">
-                  {summary ? `${Math.round(summary.pass_rate * 100)}%` : "-"}
+                  {summary ? `${Math.round(summary.pass_rate * 100)}%` : "—"}
                 </div>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", riskBg("low"))}>
-                Strong: {summary?.strong ?? "..."}
+                Strong: {summary?.strong ?? "—"}
               </span>
               <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", riskBg("medium"))}>
-                Average: {summary?.average_band ?? "..."}
+                Average: {summary?.average_band ?? "—"}
               </span>
               <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", riskBg("high"))}>
-                At risk: {summary?.at_risk ?? "..."}
+                At risk: {summary?.at_risk ?? "—"}
               </span>
             </div>
             {overview.data?.trends.map((trend) => (
@@ -144,11 +158,10 @@ export function FacultyDashboard() {
             <CardTitle>Course health</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <select
+            <Select
               value={selectedCourse}
               onChange={(e) => runCourseDetail(e.target.value)}
               disabled={detailBusy}
-              className="h-10 w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
             >
               <option value="">Select a course...</option>
               {me.data?.courses.map((course) => (
@@ -156,7 +169,7 @@ export function FacultyDashboard() {
                   {course.course_code} - {course.title}
                 </option>
               ))}
-            </select>
+            </Select>
             {health && health.health_score !== null && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-end gap-2">
@@ -260,11 +273,10 @@ export function FacultyDashboard() {
                   className="text-sm"
                   disabled={interventionBusy}
                 />
-                <select
+                <Select
                   value={selectedCourse}
                   onChange={(e) => setSelectedCourse(e.target.value)}
                   disabled={interventionBusy}
-                  className="h-10 w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 >
                   <option value="">Course...</option>
                   {me.data?.courses.map((course) => (
@@ -272,7 +284,7 @@ export function FacultyDashboard() {
                       {course.course_code}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <Input
                 value={planText}

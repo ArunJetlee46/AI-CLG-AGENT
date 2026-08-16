@@ -3,12 +3,19 @@ import { FileText } from "lucide-react";
 
 import { PageHeader } from "@/core/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { EmptyState } from "@/core/components/ui/empty-state";
+import { Skeleton } from "@/core/components/ui/skeleton";
 import { placementApi } from "@/modules/placement/api";
 import { useAuthStore } from "@/core/stores/auth";
 
 export function Reports() {
   const token = useAuthStore((s) => s.token);
-  const report = useQuery({ queryKey: ["pl-report-full"], queryFn: () => placementApi.fullReport(token!), enabled: !!token });
+  const report = useQuery({
+    queryKey: ["pl-report-full"],
+    queryFn: () => placementApi.fullReport(token!),
+    enabled: !!token,
+    staleTime: 5 * 60_000,
+  });
   const r = report.data;
 
   return (
@@ -20,7 +27,24 @@ export function Reports() {
           <CardTitle className="text-sm">Cohort placement report <span className="ml-2 font-normal text-[var(--muted-foreground)]">{r?.generated_at ? new Date(r.generated_at).toLocaleString() : ""}</span></CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
-          {!r && <p className="text-[var(--muted-foreground)]">Generating…</p>}
+          {report.isLoading && !r && (
+            <div className="flex flex-col gap-4">
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 rounded-lg" />
+                ))}
+              </div>
+              <Skeleton className="h-24 w-full rounded-lg" />
+            </div>
+          )}
+          {report.isError && !r && (
+            <EmptyState
+              title="Could not generate the report"
+              description="Placement report generation failed. Try again."
+              icon={FileText}
+            />
+          )}
           {r && (
             <>
               <p className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/30 p-3">{r.summary}</p>
@@ -64,7 +88,7 @@ export function Reports() {
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-[var(--muted-foreground)]">method: {r.method} · regenerated on each visit</p>
+              <p className="text-xs text-[var(--muted-foreground)]">method: {r.method} · cached for 5 minutes</p>
             </>
           )}
         </CardContent>

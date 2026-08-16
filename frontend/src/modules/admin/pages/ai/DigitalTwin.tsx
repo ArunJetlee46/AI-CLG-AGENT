@@ -6,6 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { Skeleton } from "@/core/components/ui/skeleton";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi, type ScenarioResult } from "@/modules/admin/api";
 
@@ -24,7 +25,7 @@ export function AdminDigitalTwin() {
   const [interventions, setInterventions] = useState(0);
   const [scenario, setScenario] = useState<ScenarioResult | null>(null);
 
-  const twin = useQuery({ queryKey: ["admin-twin"], queryFn: () => adminApi.digitalTwin(token!), enabled: !!token });
+  const twin = useQuery({ queryKey: ["admin-twin"], queryFn: () => adminApi.digitalTwin(token!), enabled: !!token, refetchInterval: 60_000 });
 
   const run = useMutation({
     mutationFn: () =>
@@ -53,9 +54,13 @@ export function AdminDigitalTwin() {
             <CardTitle>Health score</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-4xl font-bold ${trajectoryStyles[d?.trajectory ?? "stable"]}`}>
-              {d?.health.university_health_score ?? "…"}
-            </p>
+            {twin.isLoading && !d ? (
+              <Skeleton className="h-9 w-16" />
+            ) : (
+              <p className={`text-4xl font-bold ${trajectoryStyles[d?.trajectory ?? "stable"]}`}>
+                {d?.health.university_health_score ?? "—"}
+              </p>
+            )}
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">trajectory: {d?.trajectory}</p>
           </CardContent>
         </Card>
@@ -65,9 +70,19 @@ export function AdminDigitalTwin() {
             <CardTitle>People</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <p><strong>{d?.entities.students ?? "…"}</strong> students</p>
-            <p><strong>{d?.entities.faculty ?? "…"}</strong> faculty</p>
-            <p><strong>{d?.entities.courses ?? "…"}</strong> courses</p>
+            {twin.isLoading && !d ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : (
+              <>
+                <p><strong>{d?.entities.students ?? "—"}</strong> students</p>
+                <p><strong>{d?.entities.faculty ?? "—"}</strong> faculty</p>
+                <p><strong>{d?.entities.courses ?? "—"}</strong> courses</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -76,9 +91,19 @@ export function AdminDigitalTwin() {
             <CardTitle>Infrastructure</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <p><strong>{d?.entities.rooms ?? "…"}</strong> rooms</p>
-            <p><strong>{d?.entities.timetable_entries ?? "…"}</strong> timetable slots</p>
-            <p>{d?.state.pending_approvals ?? 0} pending approvals</p>
+            {twin.isLoading && !d ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : (
+              <>
+                <p><strong>{d?.entities.rooms ?? "—"}</strong> rooms</p>
+                <p><strong>{d?.entities.timetable_entries ?? "—"}</strong> timetable slots</p>
+                <p>{d?.state.pending_approvals ?? 0} pending approvals</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -87,10 +112,21 @@ export function AdminDigitalTwin() {
             <CardTitle>KPI snapshot</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <p>Attendance <strong>{d?.state.kpis.attendance}%</strong></p>
-            <p>Success <strong>{d?.state.kpis.academic_success}%</strong></p>
-            <p>Placement <strong>{d?.state.kpis.placement}%</strong></p>
-            <p>At-risk <strong>{d?.state.kpis.at_risk}%</strong></p>
+            {twin.isLoading && !d ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : (
+              <>
+                <p>Attendance <strong>{d?.state.kpis.attendance}%</strong></p>
+                <p>Success <strong>{d?.state.kpis.academic_success}%</strong></p>
+                <p>Placement <strong>{d?.state.kpis.placement}%</strong></p>
+                <p>At-risk <strong>{d?.state.kpis.at_risk}%</strong></p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

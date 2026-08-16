@@ -5,7 +5,9 @@ import { useState } from "react";
 import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Dialog } from "@/core/components/ui/dialog";
 import { Input } from "@/core/components/ui/input";
+import { Select } from "@/core/components/ui/select";
 import { toast } from "@/core/components/ui/toast";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi, type AdminUser } from "@/modules/admin/api";
@@ -24,6 +26,8 @@ export function AdminUsers() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("student");
   const [email, setEmail] = useState("");
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   const users = useQuery({ queryKey: ["admin-users"], queryFn: () => adminApi.users(token!), enabled: !!token });
 
@@ -53,8 +57,15 @@ export function AdminUsers() {
   const changeRole = (u: AdminUser, role: string) => update.mutate({ id: u.id, body: { role } });
   const toggleActive = (u: AdminUser) => update.mutate({ id: u.id, body: { is_active: !u.is_active } });
   const resetPassword = (u: AdminUser) => {
-    const pwd = prompt(`New password for ${u.username}:`, "NewPass@123");
-    if (pwd) update.mutate({ id: u.id, body: { password: pwd } });
+    setNewPassword("");
+    setResetUser(u);
+  };
+  const confirmReset = () => {
+    if (!resetUser || !newPassword.trim()) return;
+    update.mutate(
+      { id: resetUser.id, body: { password: newPassword } },
+      { onSuccess: () => setResetUser(null) }
+    );
   };
 
   return (
@@ -82,12 +93,12 @@ export function AdminUsers() {
           </label>
           <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">
             Role
-            <select value={role} onChange={(e) => setRole(e.target.value)} className="h-10 rounded-md border border-[var(--border)] bg-transparent px-3 text-sm">
+            <Select value={role} onChange={(e) => setRole(e.target.value)} className="w-44">
               <option value="student">Student</option>
               <option value="lecturer">Lecturer</option>
               <option value="placement">Placement Officer</option>
               <option value="admin">Admin</option>
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">
             Email
@@ -156,6 +167,34 @@ export function AdminUsers() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={resetUser !== null}
+        onClose={() => setResetUser(null)}
+        title="Reset password"
+        description={resetUser ? `Set a new password for ${resetUser.username}.` : undefined}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setResetUser(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" disabled={!newPassword.trim() || update.isPending} loading={update.isPending} onClick={confirmReset}>
+              Save new password
+            </Button>
+          </>
+        }
+      >
+        <Input
+          type="text"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="New password"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") confirmReset();
+          }}
+        />
+      </Dialog>
     </div>
   );
 }

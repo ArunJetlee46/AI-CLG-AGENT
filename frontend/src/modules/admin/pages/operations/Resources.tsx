@@ -7,6 +7,8 @@ import { StatCard } from "@/core/components/StatCard";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
+import { Select } from "@/core/components/ui/select";
+import { toast } from "@/core/components/ui/toast";
 import { useAuthStore } from "@/core/stores/auth";
 import { adminApi } from "@/modules/admin/api";
 
@@ -29,10 +31,12 @@ export function AdminResources() {
   const create = useMutation({
     mutationFn: (b: { name: string; resource_type?: string; location?: string }) => adminApi.createResource(b, token!),
     onSuccess: () => { invalidate(); setName(""); setLocation(""); },
+    onError: (err) => toast.error("Add failed", err instanceof Error ? err.message : undefined),
   });
   const update = useMutation({
     mutationFn: ({ id, body }: { id: string; body: { status?: string; utilization?: number } }) => adminApi.updateResource(id, body, token!),
     onSuccess: invalidate,
+    onError: (err) => toast.error("Update failed", err instanceof Error ? err.message : undefined),
   });
 
   return (
@@ -56,13 +60,13 @@ export function AdminResources() {
           </label>
           <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">
             Type
-            <select value={type} onChange={(e) => setType(e.target.value)} className="h-10 rounded-md border border-[var(--border)] bg-transparent px-3 text-sm">
+            <Select value={type} onChange={(e) => setType(e.target.value)} className="w-48">
               <option value="classroom">Classroom</option>
               <option value="laboratory">Laboratory</option>
               <option value="auditorium">Auditorium</option>
               <option value="library">Library</option>
               <option value="server">Server</option>
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-[var(--muted-foreground)]">
             Location

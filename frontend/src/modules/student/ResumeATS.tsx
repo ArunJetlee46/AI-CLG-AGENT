@@ -5,6 +5,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Textarea } from "@/core/components/ui/input";
 import { studentApi, type ResumeATS } from "@/modules/student/api";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -39,12 +40,11 @@ export function ResumeATS() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="flex flex-col gap-3">
-            <textarea
+            <Textarea
               value={resumeText}
               onChange={(e) => setResumeText(e.target.value)}
               rows={9}
               placeholder="Paste the plain-text version of your resume (at least 20 characters)…"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
             />
             <div className="flex justify-end">
               <Button type="submit" disabled={busy || resumeText.trim().length < 20}>

@@ -78,8 +78,14 @@ export function AdminGovernance() {
           ))}
           {(d?.recommendations ?? []).length === 0 && (
             <p className="text-sm text-[var(--muted-foreground)]">
-              No recommendations. <Button size="sm" variant="outline" className="ml-2">Run health assessment</Button>
+              No recommendations.
+              <Button size="sm" variant="outline" className="ml-2" onClick={() => q.refetch()} disabled={q.isFetching}>
+                {q.isFetching ? "Checking…" : "Run health assessment"}
+              </Button>
             </p>
+          )}
+          {q.isError && (
+            <p className="text-sm text-[var(--destructive)]">Could not load governance data. Retry from the button above.</p>
           )}
         </CardContent>
       </Card>
