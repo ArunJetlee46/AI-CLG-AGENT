@@ -18,6 +18,10 @@ INTENT_CASES = [
     ("build a conflict-free timetable for CS301 using room 401", "resources"),
     ("who teaches CS301 and what is the cypher schema", "knowledge"),
     ("what courses are available next term", "academic"),
+    ("what is my placement readiness for campus drives", "placement"),
+    ("is my attendance below 75% in any course", "attendance"),
+    ("generate practice questions for CS301", "exam"),
+    ("am I eligible to take CS302", "advising"),
 ]
 
 

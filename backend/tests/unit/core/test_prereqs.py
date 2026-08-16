@@ -127,7 +127,7 @@ def test_unmet_prereqs_derived_from_student_results(prereq_graph) -> None:
 
 def test_advising_answers_prereq_question(prereq_graph) -> None:
     state = get_supervisor().invoke("what are the prerequisites for PR301", actor="prereq-tester")
-    assert state["intent"] == "academic"
+    assert state["intent"] == "advising"  # dedicated advising agent (Theme A)
     assert state["agent"] == "advising"
     assert "directly requires: PR201" in state["answer"]
     assert "PR201 > PR101" in state["answer"]

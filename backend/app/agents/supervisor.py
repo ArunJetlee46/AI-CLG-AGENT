@@ -9,7 +9,15 @@ from app.agents.debate import debate_node
 from app.agents.execute import ExecuteAgent
 from app.agents.memory import get_memory, memory_node
 from app.agents.reasoning import plan_intent, reflect_answer
-from app.agents.specialists import KnowledgeAgent, ResourceOptimizerAgent, StudentSuccessAgent
+from app.agents.specialists import (
+    AdvisingAgent,
+    AttendanceAgent,
+    ExamAgent,
+    KnowledgeAgent,
+    PlacementAgent,
+    ResourceOptimizerAgent,
+    StudentSuccessAgent,
+)
 from app.agents.state import AgentState
 from app.core.audit import create_decision_card, record_event
 from app.db import SessionLocal
@@ -21,6 +29,10 @@ academic = AcademicOpsAgent()
 success = StudentSuccessAgent()
 resources = ResourceOptimizerAgent()
 knowledge = KnowledgeAgent()
+placement = PlacementAgent()
+attendance = AttendanceAgent()
+exam = ExamAgent()
+advising = AdvisingAgent()
 
 
 def _classify(text: str) -> str:
@@ -31,6 +43,14 @@ def _classify(text: str) -> str:
         return "resources"
     if any(k in lowered for k in ("graph", "cypher", "lecturer", "department", "who teaches", "overloaded")):
         return "knowledge"
+    if any(k in lowered for k in ("placement", "job", "career", "hiring", "readiness")):
+        return "placement"
+    if any(k in lowered for k in ("attendance", "absent", "present")):
+        return "attendance"
+    if any(k in lowered for k in ("exam", "quiz", "practice question", "mock interview")):
+        return "exam"
+    if any(k in lowered for k in ("prereq", "eligible", "can i take", "enroll")):
+        return "advising"
     return "academic"
 
 
@@ -159,6 +179,10 @@ class SupervisorGraph:
         builder.add_node("success", success.run)
         builder.add_node("resources", resources.run)
         builder.add_node("knowledge", knowledge.run)
+        builder.add_node("placement", placement.run)
+        builder.add_node("attendance", attendance.run)
+        builder.add_node("exam", exam.run)
+        builder.add_node("advising", advising.run)
         builder.add_node("reflect", reflect_node)
         builder.add_node("debate", debate_node)
         builder.add_node("terminal", terminal_node)
@@ -174,9 +198,22 @@ class SupervisorGraph:
                 "success": "success",
                 "resources": "resources",
                 "knowledge": "knowledge",
+                "placement": "placement",
+                "attendance": "attendance",
+                "exam": "exam",
+                "advising": "advising",
             },
         )
-        for agent in ("academic", "success", "resources", "knowledge"):
+        for agent in (
+            "academic",
+            "success",
+            "resources",
+            "knowledge",
+            "placement",
+            "attendance",
+            "exam",
+            "advising",
+        ):
             builder.add_edge(agent, "reflect")
         builder.add_conditional_edges(
             "reflect",
@@ -188,12 +225,15 @@ class SupervisorGraph:
 
         self.graph = builder.compile()
 
-    def invoke(self, message: str, *, actor: str = "system", actor_id: str = "") -> AgentState:
+    def invoke(
+        self, message: str, *, actor: str = "system", actor_id: str = "", student_id: str = ""
+    ) -> AgentState:
         initial: AgentState = {
             "messages": [{"role": "user", "content": message}],
             "audit_events": [],
             "actor": actor,
             "actor_id": actor_id,
+            "student_id": student_id,
             "requires_approval": False,
         }
         state = self.graph.invoke(initial)

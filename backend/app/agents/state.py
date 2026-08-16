@@ -29,3 +29,4 @@ class AgentState(TypedDict, total=False):
     audit_events: list[dict[str, Any]]
     actor: str
     actor_id: str
+    student_id: str                  # resolved caller student id ("" when not a student)

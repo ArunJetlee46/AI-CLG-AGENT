@@ -155,7 +155,7 @@ Nodes tested independently (`tests/test_agent_nodes.py`, 9 tests) and in
 
 | Node / unit | Scenarios |
 | --- | --- |
-| `router_node` | classification for each of the 4 intents (academic / success / resources / knowledge) |
+| `router_node` | classification for each of the 8 intents (academic / success / resources / knowledge / placement / attendance / exam / advising) |
 | `ConversationMemory` | eviction boundary (max_turns 3 → 5 adds), per-actor isolation, `memory_node` state load |
 | `fuse_confidences` | weighted fusion, 0.90 cap |
 | `debate_node` | evidence-gap verdict → escalation, `requires_approval`, fused confidence math, `debate_validation` audit event |
@@ -171,7 +171,7 @@ Workflow under test (compiled graph, single `invoke`):
 
 | Test | Verifies |
 | --- | --- |
-| every-intent run | answer + plan + confidence + reflection for all 4 intents |
+| every-intent run | answer + plan + confidence + reflection for all 8 intents |
 | memory across turns | second invoke's `state["memory"]` contains the first exchange |
 | risk query flow | intent `success`, debate round ≥ 1, `debate_validation` audit event |
 | approval escalation | `requires_approval` → persisted `ApprovalRequest` + decision card (via API-level test too) |

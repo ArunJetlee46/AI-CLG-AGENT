@@ -20,7 +20,7 @@ from app.services.rag.llm import LLMResponse, get_llm_gateway
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-INTENTS = ("academic", "success", "resources", "knowledge")
+INTENTS = ("academic", "success", "resources", "knowledge", "placement", "attendance", "exam", "advising")
 PLAN_STEPS = ("classify", "retrieve", "query_db", "analyze", "propose", "debate", "reflect", "execute")
 
 
@@ -93,7 +93,11 @@ def plan_intent(text: str) -> tuple[str | None, list[str] | None]:
         "- 'which students are at risk of dropping out' -> success (risk/dropout/predictions)\n"
         "- 'build a conflict-free timetable for CS301' -> resources (timetable/rooms/conflicts)\n"
         "- 'who teaches CS301' -> knowledge (knowledge graph/lecturer/department)\n"
-        "- 'what courses are offered next term' -> academic (courses/exams/attendance/registration)\n"
+        "- 'what courses are offered next term' -> academic (courses/registration/catalog)\n"
+        "- 'what is my placement readiness' -> placement (placement/job/career/readiness)\n"
+        "- 'is my attendance below 75% in any course' -> attendance (attendance/absent)\n"
+        "- 'generate practice questions for CS301' -> exam (exam/quiz/mock/practice)\n"
+        "- 'am I eligible to take CS302' -> advising (prerequisites/eligibility)\n"
         'Reply with ONLY a JSON object: {"intent": "<one intent>", "steps": ["classify", "retrieve", "analyze"]}.',
         text[:500],
     )
