@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.supervisor import get_supervisor
 from app.api.deps import get_current_user
+from app.config import get_settings
 from app.core.audit import record_event
+from app.core.ratelimit import limiter
 from app.db import get_db
 from app.models.entities import Student, User
 from app.schemas.chat import ChatRequest, ChatResponse
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+settings = get_settings()
 
 
 def _caller_student_id(db: Session, user: User) -> str:
@@ -22,7 +25,8 @@ def _caller_student_id(db: Session, user: User) -> str:
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(body: ChatRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> ChatResponse:
+@limiter.limit(settings.chat_rate_limit)
+def chat(request: Request, body: ChatRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> ChatResponse:
     supervisor = get_supervisor()
     state = supervisor.invoke(
         body.message,

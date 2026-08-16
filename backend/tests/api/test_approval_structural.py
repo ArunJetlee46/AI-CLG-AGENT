@@ -169,6 +169,7 @@ def test_boot_refused_in_production_with_defaults() -> None:
         app_env="production",
         secret_key="dev-secret-change-me",
         default_admin_password="admin123",
+        cors_origin_list=["*"],
     )
     with pytest.raises(RuntimeError):
         assert_secure_boot(bad)
@@ -179,6 +180,7 @@ def test_boot_allowed_when_credentials_are_hardened() -> None:
         app_env="production",
         secret_key="a-real-secret",
         default_admin_password="correct horse battery staple",
+        cors_origin_list=["http://localhost:5173"],
     )
     assert_secure_boot(good)
 
@@ -188,5 +190,6 @@ def test_boot_allowed_in_development_with_defaults() -> None:
         app_env="development",
         secret_key="dev-secret-change-me",
         default_admin_password="admin123",
+        cors_origin_list=["*"],
     )
     assert_secure_boot(dev)

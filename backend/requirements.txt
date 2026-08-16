@@ -17,6 +17,7 @@ neo4j>=5.20
 qdrant-client>=1.9
 prometheus-client>=0.20
 sentry-sdk[fastapi]>=2.0
+slowapi>=0.1.9
 onnxruntime>=1.17
 tokenizers>=0.15
 huggingface_hub>=0.20

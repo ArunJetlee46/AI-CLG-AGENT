@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
 
+    cors_origins: str = "*"  # comma-separated allowlist; "*" only safe in development
+    login_rate_limit: str = "10/minute"  # slowapi "count/period" for /auth/login
+    chat_rate_limit: str = "60/minute"  # slowapi "count/period" for /agents/chat
+
     database_url: str = "sqlite:///./beru.db"
     redis_url: str = "redis://localhost:6379/0"
 
@@ -83,6 +87,10 @@ class Settings(BaseSettings):
     @property
     def llm_providers(self) -> list[str]:
         return [p.strip().lower() for p in self.llm_provider_order.split(",") if p.strip()]
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache
