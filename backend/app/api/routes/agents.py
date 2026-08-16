@@ -29,6 +29,7 @@ def chat(body: ChatRequest, user: User = Depends(get_current_user), db: Session 
         actor=user.username,
         actor_id=user.id,
         student_id=_caller_student_id(db, user),
+        session_id=body.session_id,
     )
     record_event(
         db,

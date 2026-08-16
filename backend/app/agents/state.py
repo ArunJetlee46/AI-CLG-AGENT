@@ -30,3 +30,4 @@ class AgentState(TypedDict, total=False):
     actor: str
     actor_id: str
     student_id: str                  # resolved caller student id ("" when not a student)
+    session_id: str | None           # chat thread id (None = single default thread)

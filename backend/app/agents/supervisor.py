@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.agents.academic_ops import AcademicOpsAgent
 from app.agents.debate import debate_node
 from app.agents.execute import ExecuteAgent
-from app.agents.memory import get_memory, memory_node
+from app.agents.memory import get_memory, memory_node, persist_exchange
 from app.agents.reasoning import plan_intent, reflect_answer
 from app.agents.specialists import (
     AdvisingAgent,
@@ -226,7 +226,13 @@ class SupervisorGraph:
         self.graph = builder.compile()
 
     def invoke(
-        self, message: str, *, actor: str = "system", actor_id: str = "", student_id: str = ""
+        self,
+        message: str,
+        *,
+        actor: str = "system",
+        actor_id: str = "",
+        student_id: str = "",
+        session_id: str | None = None,
     ) -> AgentState:
         initial: AgentState = {
             "messages": [{"role": "user", "content": message}],
@@ -234,6 +240,7 @@ class SupervisorGraph:
             "actor": actor,
             "actor_id": actor_id,
             "student_id": student_id,
+            "session_id": session_id,
             "requires_approval": False,
         }
         state = self.graph.invoke(initial)
@@ -241,6 +248,12 @@ class SupervisorGraph:
         memory.add(actor, "user", message)
         if state.get("answer"):
             memory.add(actor, "assistant", state["answer"])
+        persist_exchange(
+            actor=actor,
+            user_message=message,
+            assistant_answer=state.get("answer", ""),
+            session_id=session_id,
+        )
         return state
 
 
