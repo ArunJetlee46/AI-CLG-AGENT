@@ -1,4 +1,4 @@
-import { Bot, Send, Sparkles } from "lucide-react";
+import { Bot, Check, Copy, Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -6,7 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Button } from "@/core/components/ui/button";
 import { Card } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
-import { agentApi } from "@/core/lib/api";
+import { chatStream } from "@/core/lib/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -35,8 +35,21 @@ export function Chat() {
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
+
+  async function copyMessage(index: number) {
+    const message = messages[index];
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message.content + (message.meta ? `\n\n[${message.meta}]` : ""));
+      setCopied(index);
+      setTimeout(() => setCopied((c) => (c === index ? null : c)), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
 
   useEffect(() => {
     const prompt = searchParams.get("q");
@@ -51,6 +64,8 @@ export function Chat() {
     event.preventDefault();
     const question = (preset ?? input).trim();
     if (!question || !token) return;
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
     const assistantIndexRef = { current: 0 };
@@ -68,52 +83,68 @@ export function Chat() {
       );
 
     try {
-      await agentApi.chatStream(question, token, (event) => {
-        if (event.type === "chunk") {
-          patchAnswer(event.content);
-        } else if (event.type === "meta") {
-          const via = event.provider
-            ? ` via ${event.provider === "local-fallback" ? "local fallback" : event.provider} (${event.model})`
+      await chatStream(
+        question,
+        token,
+        (text) => {
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last.role === "assistant" && !last.error) {
+              copy[copy.length - 1] = { ...last, content: last.content + text };
+            }
+            return copy;
+          });
+        },
+        (final) => {
+          const via = final.provider
+            ? ` via ${final.provider === "local-fallback" ? "local fallback" : final.provider}${final.model ? ` (${final.model})` : ""}`
             : "";
           const chips = [
-            `intent ${event.intent}`,
-            event.agent,
+            `intent ${final.intent}`,
+            final.agent,
             via || undefined,
-            event.approval_id ? `approval ${event.approval_id.slice(0, 8)}` : undefined,
-            event.decision_card_id ? `card ${event.decision_card_id.slice(0, 8)}` : undefined,
+            final.approval_id ? `approval ${final.approval_id.slice(0, 8)}` : undefined,
+            final.decision_card_id ? `card ${final.decision_card_id.slice(0, 8)}` : undefined,
           ].filter(Boolean);
-          metaChips = chips.join(" · ");
-        } else if (event.type === "error") {
-          throw new Error(event.error);
-        }
-      });
-
-      setMessages((prev) =>
-        prev.map((message, i) =>
-          i === assistantIndexRef.current ? { ...message, meta: metaChips } : message
-        )
-      );
-      const final = assistantIndexRef.current;
-      setMessages((prev) =>
-        prev.map((message, i) =>
-          i === final && !message.content.trim()
-            ? { ...message, content: "No response.", error: false }
-            : message
-        )
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last.role === "assistant" && !last.error) {
+              copy[copy.length - 1] = {
+                ...last,
+                content: final.answer || last.content,
+                meta: chips.join(" · "),
+              };
+            }
+            return copy;
+          });
+        },
+        (message) => {
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last.role === "assistant") {
+              copy[copy.length - 1] = { ...last, content: `Error: ${message}`, meta: "request failed", error: true };
+            }
+            return copy;
+          });
+        },
       );
     } catch (err) {
-      setMessages((prev) =>
-        prev.map((message, i) =>
-          i === assistantIndexRef.current
-            ? {
-                ...message,
-                content: message.content || `Error: ${err instanceof Error ? err.message : "request failed"}`,
-                meta: "request failed",
-                error: true,
-              }
-            : message
-        )
-      );
+      setMessages((prev) => {
+        const copy = [...prev];
+        const last = copy[copy.length - 1];
+        if (last.role === "assistant") {
+          copy[copy.length - 1] = {
+            ...last,
+            content: `Error: ${err instanceof Error ? err.message : "request failed"}`,
+            meta: "request failed",
+            error: true,
+          };
+        }
+        return copy;
+      });
     } finally {
       setBusy(false);
     }
@@ -144,7 +175,7 @@ export function Chat() {
               )}
               <div
                 className={cn(
-                  "whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                  "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                   message.role === "user"
                     ? "rounded-br-sm bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm shadow-[var(--primary)]/20"
                     : cn(
@@ -153,10 +184,30 @@ export function Chat() {
                       )
                 )}
               >
-                {message.content}
+                {message.role === "assistant" && message.content && !(busy && index === messages.length - 1) && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      aria-label="Copy answer"
+                      onClick={() => copyMessage(index)}
+                      className="mb-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                    >
+                      {copied === index ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {copied === index ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                )}
+                <div className="whitespace-pre-wrap">{message.content}</div>
                 {message.meta && !message.error && (
-                  <div className="mt-1.5 border-t border-[var(--border)]/60 pt-1.5 text-[11px] text-[var(--muted-foreground)]">
-                    {message.meta}
+                  <div className="mt-1.5 flex flex-wrap gap-1.5 border-t border-[var(--border)]/60 pt-2">
+                    {message.meta.split(" · ").map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-[11px] text-[var(--muted-foreground)]"
+                      >
+                        {chip}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>

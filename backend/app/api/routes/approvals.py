@@ -8,7 +8,7 @@ from app.agents.supervisor import approve_request
 from app.api.deps import require_role
 from app.db import get_db
 from app.models.entities import ApprovalRequest
-from app.schemas.common import ApprovalDecision
+from app.schemas.approval import ApprovalDecision
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 

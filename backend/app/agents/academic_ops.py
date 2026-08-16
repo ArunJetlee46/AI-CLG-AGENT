@@ -35,7 +35,7 @@ class AcademicOpsAgent:
 
     def _answer(self, state: AgentState, text: str) -> AgentState:
         rag = get_rag()
-        answer, citations, llm_resp = rag.answer(text)
+        answer, citations, llm_resp = rag.answer(text, on_token=state.get("stream_callback"))
         state["answer"] = answer
         state["citations"] = citations
         state["agent"] = self.name

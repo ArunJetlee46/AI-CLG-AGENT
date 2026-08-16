@@ -47,7 +47,7 @@
   X,
   GitBranch,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { scheduleProactiveRefresh } from "@/core/lib/auth-session";
@@ -244,6 +244,7 @@ export function Layout() {
   const location = useLocation();
   const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebarState();
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const theme = roleTheme[role ?? ""] ?? roleTheme.admin;
   const sections = useMemo(() => buildSections(role ?? null), [role]);
@@ -277,6 +278,20 @@ export function Layout() {
     setMobileOpen(false);
     setQuery("");
   }, [location.pathname, setMobileOpen]);
+
+  // Cmd/Ctrl+K focuses the page search.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setMobileOpen(false);
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [setMobileOpen]);
 
   // Validate the stored session on load and arm the proactive refresh timer.
   useEffect(() => {
@@ -319,9 +334,10 @@ export function Layout() {
           <div className="relative mb-2 px-3">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
             <input
+              ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search pages…"
+              placeholder="Search pages…  (Ctrl K)"
               className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--muted)]/50 pl-9 pr-3 text-sm placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)]/40 focus:bg-white focus:outline-none"
             />
           </div>

@@ -7,11 +7,10 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
-import { Input } from "@/core/components/ui/input";
+import { Input, Textarea } from "@/core/components/ui/input";
+import { Select } from "@/core/components/ui/select";
 import { placementApi, type JDAnalysis, type JdRow } from "@/modules/placement/api";
 import { useAuthStore } from "@/core/stores/auth";
-
-const inputCls = "w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--primary)]";
 
 export function JDAnalyzer() {
   const token = useAuthStore((s) => s.token);
@@ -106,12 +105,12 @@ export function JDAnalyzer() {
                 {createCompany.isPending ? "Adding…" : "Add company"}
               </Button>
             </div>
-            <select className={inputCls} value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+            <Select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
               <option value="">Pick a company for the JD…</option>
               {(companies.data ?? []).map((c) => (
                 <option key={c.id} value={c.id}>{c.name} · {c.sector}</option>
               ))}
-            </select>
+            </Select>
           </CardContent>
         </Card>
 
@@ -121,8 +120,8 @@ export function JDAnalyzer() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Input placeholder="Job title (e.g. Data Scientist Intern)" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <textarea
-              className={`${inputCls} min-h-[180px] resize-y`}
+            <Textarea
+              className="min-h-[180px] resize-y"
               placeholder={"Paste the full job description…\n\ne.g. Software Engineer Intern. Requires Python, Java, SQL, communication. GPA 3.0, 0 backlogs. CTC 12-18 LPA."}
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}

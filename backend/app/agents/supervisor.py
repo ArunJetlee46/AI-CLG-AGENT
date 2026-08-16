@@ -9,8 +9,17 @@ from sqlalchemy import select
 from app.agents.academic_ops import AcademicOpsAgent
 from app.agents.debate import debate_node
 from app.agents.execute import ExecuteAgent
-from app.agents.memory import get_memory, memory_node
-from app.agents.specialists import KnowledgeAgent, ResourceOptimizerAgent, StudentSuccessAgent
+from app.agents.memory import get_memory, memory_node, persist_exchange
+from app.agents.reasoning import plan_intent, reflect_answer
+from app.agents.specialists import (
+    AdvisingAgent,
+    AttendanceAgent,
+    ExamAgent,
+    KnowledgeAgent,
+    PlacementAgent,
+    ResourceOptimizerAgent,
+    StudentSuccessAgent,
+)
 from app.agents.state import AgentState
 from app.config import get_settings
 from app.core.audit import create_decision_card, record_event
@@ -25,6 +34,10 @@ academic = AcademicOpsAgent()
 success = StudentSuccessAgent()
 resources = ResourceOptimizerAgent()
 knowledge = KnowledgeAgent()
+placement = PlacementAgent()
+attendance = AttendanceAgent()
+exam = ExamAgent()
+advising = AdvisingAgent()
 
 INTENTS = ("academic", "success", "resources", "knowledge")
 ROUTER_DOMAINS = ("risk", "timetable", "graph", "course", "exam", "attendance")
@@ -38,6 +51,14 @@ def _classify(text: str) -> str:
         return "resources"
     if any(k in lowered for k in ("graph", "cypher", "lecturer", "department", "who teaches", "overloaded")):
         return "knowledge"
+    if any(k in lowered for k in ("placement", "job", "career", "hiring", "readiness")):
+        return "placement"
+    if any(k in lowered for k in ("attendance", "absent", "present")):
+        return "attendance"
+    if any(k in lowered for k in ("exam", "quiz", "practice question", "mock interview")):
+        return "exam"
+    if any(k in lowered for k in ("prereq", "eligible", "can i take", "enroll")):
+        return "advising"
     return "academic"
 
 
@@ -76,23 +97,22 @@ def _classify_with_llm(text: str) -> str | None:
 
 def router_node(state: AgentState) -> AgentState:
     text = state["messages"][-1]["content"]
-    intent: str | None = None
-    if settings.llm_router_enabled:
-        intent = _classify_with_llm(text)
+    intent, plan = plan_intent(text)
     state["intent"] = intent or _classify(text)
+    state["llm_plan"] = plan
     return state
 
 
 def planner_node(state: AgentState) -> AgentState:
-    """Decomposes the request into ordered execution steps.
-
-    Domains are detected by an LLM call when enabled (llm_router_enabled) and
-    fall back to keyword matching; the plan itself stays deterministic. The
-    plan is audited with the decision card.
+    """Uses the fused router/planner result when the LLM stage ran; otherwise the
+    deterministic rule planner. The plan is audited with the decision card.
     """
-    text = state["messages"][-1]["content"]
-    lowered = text.lower()
-    domains = _detect_domains(text, lowered)
+    if state.get("llm_plan"):
+        state["plan"] = state["llm_plan"]
+        return state
+
+    text = state["messages"][-1]["content"].lower()
+    domains = [d for d in ("risk", "timetable", "graph", "course", "exam", "attendance") if d in text]
     state["plan"] = ["classify", "execute", "reflect"] + (["debate"] if state.get("intent") == "success" else [])
     if len(domains) > 1:
         state["plan"].insert(0, f"multi-domain:{'+'.join(domains)}")
@@ -128,9 +148,11 @@ def _detect_domains(text: str, lowered: str) -> list[str]:
 def reflect_node(state: AgentState) -> AgentState:
     """Self-critique pass before finalization (Phase 8 reflection node).
 
-    Rule-based checks: answer presence, admitted uncertainty, citation coverage,
-    approval gating. Produces findings + a base confidence used by the debate
-    node; appends a visible self-check note only for knowledge answers.
+    Deterministic checks (empty answer, admitted uncertainty, citation coverage,
+    approval gating) always run; an LLM critic then adds its findings and a
+    confidence delta when the gateway is reachable. Produces findings + a base
+    confidence used by the debate node; appends a visible self-check note only
+    for knowledge answers.
     """
     answer = state.get("answer", "")
     findings: list[str] = []
@@ -147,6 +169,11 @@ def reflect_node(state: AgentState) -> AgentState:
     if state.get("intent") in ("academic", "knowledge") and not state.get("citations"):
         findings.append("no citations attached to factual answer")
         confidence -= 0.10
+
+    critique = reflect_answer(state)
+    if critique:
+        findings.extend(critique["issues"])
+        confidence -= critique["confidence_delta"]
 
     state["reflection"] = findings
     state["confidence"] = round(max(0.1, confidence), 2)
@@ -219,6 +246,10 @@ class SupervisorGraph:
         builder.add_node("success", success.run)
         builder.add_node("resources", resources.run)
         builder.add_node("knowledge", knowledge.run)
+        builder.add_node("placement", placement.run)
+        builder.add_node("attendance", attendance.run)
+        builder.add_node("exam", exam.run)
+        builder.add_node("advising", advising.run)
         builder.add_node("reflect", reflect_node)
         builder.add_node("debate", debate_node)
         builder.add_node("terminal", terminal_node)
@@ -234,9 +265,22 @@ class SupervisorGraph:
                 "success": "success",
                 "resources": "resources",
                 "knowledge": "knowledge",
+                "placement": "placement",
+                "attendance": "attendance",
+                "exam": "exam",
+                "advising": "advising",
             },
         )
-        for agent in ("academic", "success", "resources", "knowledge"):
+        for agent in (
+            "academic",
+            "success",
+            "resources",
+            "knowledge",
+            "placement",
+            "attendance",
+            "exam",
+            "advising",
+        ):
             builder.add_edge(agent, "reflect")
         builder.add_conditional_edges(
             "reflect",
@@ -248,12 +292,24 @@ class SupervisorGraph:
 
         self.graph = builder.compile()
 
-    def invoke(self, message: str, *, actor: str = "system", actor_id: str = "") -> AgentState:
+    def invoke(
+        self,
+        message: str,
+        *,
+        actor: str = "system",
+        actor_id: str = "",
+        student_id: str = "",
+        session_id: str | None = None,
+        on_token=None,
+    ) -> AgentState:
         initial: AgentState = {
             "messages": [{"role": "user", "content": message}],
             "audit_events": [],
             "actor": actor,
             "actor_id": actor_id,
+            "student_id": student_id,
+            "session_id": session_id,
+            "stream_callback": on_token,
             "requires_approval": False,
         }
         state = self.graph.invoke(initial)
@@ -261,6 +317,12 @@ class SupervisorGraph:
         memory.add(actor, "user", message)
         if state.get("answer"):
             memory.add(actor, "assistant", state["answer"])
+        persist_exchange(
+            actor=actor,
+            user_message=message,
+            assistant_answer=state.get("answer", ""),
+            session_id=session_id,
+        )
         return state
 
     async def stream(self, message: str, *, actor: str = "system", actor_id: str = "") -> AsyncGenerator[dict, None]:

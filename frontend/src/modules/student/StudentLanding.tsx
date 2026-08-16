@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
+import { Skeleton } from "@/core/components/ui/skeleton";
 import { studentApi } from "@/modules/student/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
@@ -87,17 +88,19 @@ export function StudentLanding() {
   const token = useAuthStore((s) => s.token);
   const username = useAuthStore((s) => s.username);
 
-  const profile = useQuery({ queryKey: ["me"], queryFn: () => studentApi.profile(token!), enabled: !!token });
-  const score = useQuery({ queryKey: ["me-score"], queryFn: () => studentApi.successScore(token!), enabled: !!token });
-  const career = useQuery({ queryKey: ["me-career"], queryFn: () => studentApi.careerReadiness(token!), enabled: !!token });
-  const today = useQuery({ queryKey: ["me-today"], queryFn: () => studentApi.today(token!), enabled: !!token });
+  const profile = useQuery({ queryKey: ["me"], queryFn: () => studentApi.profile(token!), enabled: !!token, refetchInterval: 60_000 });
+  const score = useQuery({ queryKey: ["me-score"], queryFn: () => studentApi.successScore(token!), enabled: !!token, refetchInterval: 60_000 });
+  const career = useQuery({ queryKey: ["me-career"], queryFn: () => studentApi.careerReadiness(token!), enabled: !!token, refetchInterval: 60_000 });
+  const today = useQuery({ queryKey: ["me-today"], queryFn: () => studentApi.today(token!), enabled: !!token, refetchInterval: 60_000 });
 
   const stats = [
-    { label: "Success score", value: score.data?.success_score ?? "…", sub: `${score.data?.risk_level ?? "…"} risk`, accent: "from-emerald-500 to-teal-500" },
-    { label: "GPA", value: profile.data?.gpa ?? "…", sub: "out of 4", accent: "from-violet-500 to-fuchsia-500" },
-    { label: "Attendance", value: profile.data ? `${Math.round(profile.data.overall_attendance * 100)}%` : "…", sub: `${profile.data?.course_load ?? "…"} courses`, accent: "from-sky-500 to-cyan-500" },
-    { label: "Career readiness", value: career.data?.career_readiness_score ?? "…", sub: career.data?.band ?? "…", accent: "from-amber-500 to-orange-500" },
+    { label: "Success score", value: score.data?.success_score, sub: `${score.data?.risk_level ?? "—"} risk`, accent: "from-emerald-500 to-teal-500" },
+    { label: "GPA", value: profile.data?.gpa, sub: "out of 4", accent: "from-violet-500 to-fuchsia-500" },
+    { label: "Attendance", value: profile.data ? `${Math.round(profile.data.overall_attendance * 100)}%` : undefined, sub: `${profile.data?.course_load ?? "—"} courses`, accent: "from-sky-500 to-cyan-500" },
+    { label: "Career readiness", value: career.data?.career_readiness_score, sub: career.data?.band ?? "—", accent: "from-amber-500 to-orange-500" },
   ];
+
+  const statsLoading = profile.isLoading || score.isLoading || career.isLoading;
 
   return (
     <div className="relative flex flex-col gap-8 overflow-hidden">
@@ -127,16 +130,28 @@ export function StudentLanding() {
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {stats.map(({ label, value, sub, accent }) => (
-            <div key={label} className="rounded-2xl border border-[var(--border)] bg-white/80 p-4 backdrop-blur">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-[var(--muted-foreground)]">{label}</p>
-                <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-r ${accent}`} />
+          {statsLoading && !profile.data && !score.data && !career.data ? (
+            <>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-white/80 p-4 backdrop-blur">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-8 w-14" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </>
+          ) : (
+            stats.map(({ label, value, sub, accent }) => (
+              <div key={label} className="rounded-2xl border border-[var(--border)] bg-white/80 p-4 backdrop-blur">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-[var(--muted-foreground)]">{label}</p>
+                  <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-r ${accent}`} />
+                </div>
+                <p className="mt-1 text-3xl font-extrabold">{value ?? "—"}</p>
+                <p className="text-xs capitalize text-[var(--muted-foreground)]">{sub}</p>
               </div>
-              <p className="mt-1 text-3xl font-extrabold">{value}</p>
-              <p className="text-xs capitalize text-[var(--muted-foreground)]">{sub}</p>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </section>
 

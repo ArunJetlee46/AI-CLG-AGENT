@@ -6,6 +6,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Select } from "@/core/components/ui/select";
 import { placementApi } from "@/modules/placement/api";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -56,29 +57,21 @@ export function Matching() {
         <CardContent className="flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex flex-1 flex-col gap-1">
             <span className="text-sm text-[var(--muted-foreground)]">Job description</span>
-            <select
-              className="w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-              value={jdId}
-              onChange={(e) => setJdId(e.target.value)}
-            >
+            <Select value={jdId} onChange={(e) => setJdId(e.target.value)}>
               <option value="">Pick a JD…</option>
               {(jds.data ?? []).map((jd) => (
                 <option key={jd.id} value={jd.id}>{jd.title} (GPA ≥ {jd.min_gpa}, ≤ {jd.max_backlogs} AR)</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="flex flex-1 flex-col gap-1">
             <span className="text-sm text-[var(--muted-foreground)]">Drive to notify for (optional)</span>
-            <select
-              className="w-full rounded-md border border-[var(--border)] bg-transparent px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-              value={driveId}
-              onChange={(e) => setDriveId(e.target.value)}
-            >
+            <Select value={driveId} onChange={(e) => setDriveId(e.target.value)}>
               <option value="">No drive (just match)…</option>
               {(drives.data ?? []).map((d) => (
                 <option key={d.id} value={d.id}>{d.title} · {d.company}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </CardContent>
       </Card>

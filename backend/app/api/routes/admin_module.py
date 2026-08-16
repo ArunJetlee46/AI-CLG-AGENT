@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_role
 from app.db import get_db
 from app.models.entities import Announcement, User
-from app.schemas.common import (
+from app.schemas.admin import (
     AnnouncementCreate,
     CopilotRequest,
     EvaluationRequest,
@@ -17,9 +17,8 @@ from app.schemas.common import (
     ResourceUpdate,
     ScenarioRequest,
     TimetableOptimizeRequest,
-    UserCreate,
-    UserUpdate,
 )
+from app.schemas.auth import UserCreate, UserUpdate
 from app.services import admin_ai_tools, admin_copilot, admin_intelligence
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -81,6 +80,15 @@ def get_safety(_: User = Depends(_admin)) -> dict:
 @router.post("/safety")
 def set_safety(body: SafetyRequest, _: User = Depends(_admin)) -> dict:
     return admin_copilot.set_safety_state(execution_enabled=body.execution_enabled, read_only=body.read_only)
+
+
+@router.post("/rag-backfill")
+def rag_backfill(_: User = Depends(_admin)) -> dict:
+    """Re-render database rows into the RAG corpus on demand."""
+    from app.services.rag.backfill import backfill_from_db
+
+    stats = backfill_from_db()
+    return {"ok": True, **stats}
 
 
 # ---------------------------------------------------------------------------

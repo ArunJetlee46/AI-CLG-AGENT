@@ -5,6 +5,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Select } from "@/core/components/ui/select";
 import { facultyApi, type QuestionPaper as QuestionPaperResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { ProviderBadge, CourseChips } from "./toolShared";
@@ -40,9 +41,9 @@ export function QuestionPaper() {
           <CourseChips value={courseCode} onChange={setCourseCode} />
           <div className="flex flex-wrap items-center gap-2">
             <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Topic (optional)" className="h-10 w-56 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm outline-none focus:border-[var(--primary)]" />
-            <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="h-10 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm">
+            <Select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
               {["foundational", "intermediate", "advanced"].map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
+            </Select>
             <input type="number" min={1} max={20} value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 w-20 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 text-sm" />
             <Button type="button" onClick={run} disabled={loading}>{loading ? "Generating…" : "Generate paper"}</Button>
           </div>

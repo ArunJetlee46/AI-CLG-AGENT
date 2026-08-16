@@ -5,6 +5,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Input, Textarea } from "@/core/components/ui/input";
 import { studentApi, type ProjectMentor } from "@/modules/student/api";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -42,25 +43,22 @@ export function ProjectMentor() {
         <CardContent>
           <form onSubmit={submit} className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <input
+              <Input
                 value={projectTitle}
                 onChange={(e) => setProjectTitle(e.target.value)}
                 placeholder="Project title (optional)"
-                className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
               />
-              <input
+              <Input
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="What do you need help with? e.g. Where do I start?"
-                className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
               />
             </div>
-            <textarea
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
               placeholder="Short description of the project (optional)…"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
             />
             <div className="flex justify-end">
               <Button type="submit" disabled={busy || !question.trim()}>

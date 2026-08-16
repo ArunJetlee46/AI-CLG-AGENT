@@ -5,6 +5,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Input, Textarea } from "@/core/components/ui/input";
 import { studentApi, type AssignmentAssist } from "@/modules/student/api";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -47,18 +48,17 @@ export function AssignmentAssistant() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="flex flex-col gap-3">
-            <input
+            <Input
               value={courseCode}
               onChange={(e) => setCourseCode(e.target.value.toUpperCase())}
               placeholder="Course code (optional)"
-              className="h-9 w-48 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              className="w-48"
             />
-            <textarea
+            <Textarea
               value={assignmentText}
               onChange={(e) => setAssignmentText(e.target.value)}
               rows={6}
               placeholder="Paste the assignment brief here…"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
             />
             <div className="flex flex-wrap items-center gap-2">
               {KINDS.map((k) => (

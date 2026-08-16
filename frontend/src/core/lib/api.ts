@@ -78,21 +78,112 @@ export interface ChatResponse {
   model: string;
 }
 
-export type StreamEvent =
-  | { type: "intent"; intent: string; plan: string[] }
-  | { type: "chunk"; content: string }
-  | {
-      type: "meta";
-      intent: string;
-      agent: string;
-      citations: string[];
-      requires_approval: boolean;
-      approval_id: string | null;
-      decision_card_id: string | null;
-      provider: string;
-      model: string;
+export interface StreamEvent {
+  type: "chunk" | "done" | "error";
+  content?: string;
+  message?: string;
+  intent?: string;
+  agent?: string;
+  answer?: string;
+  citations?: string[];
+  requires_approval?: boolean;
+  approval_id?: string | null;
+  decision_card_id?: string | null;
+  provider?: string;
+  model?: string;
+}
+
+function handleStreamEvent(raw: string, handlers: {
+  onChunk: (text: string) => void;
+  onDone: (final: ChatResponse) => void;
+  onError: (message: string) => void;
+}): boolean {
+  for (const line of raw.split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    try {
+      const event = JSON.parse(line.slice(6)) as StreamEvent;
+      if (event.type === "chunk" && typeof event.content === "string") {
+        handlers.onChunk(event.content);
+      } else if (event.type === "error") {
+        handlers.onError(event.message ?? "stream error");
+        return true;
+      } else if (event.type === "done") {
+        handlers.onDone({
+          intent: event.intent ?? "academic",
+          agent: event.agent ?? "unknown",
+          answer: event.answer ?? "",
+          citations: event.citations ?? [],
+          requires_approval: Boolean(event.requires_approval),
+          approval_id: event.approval_id ?? null,
+          decision_card_id: event.decision_card_id ?? null,
+          provider: event.provider ?? "",
+          model: event.model ?? "",
+        });
+        return true;
+      }
+    } catch {
+      /* ignore malformed frames */
     }
-  | { type: "error"; error: string };
+  }
+  return false;
+}
+
+export async function chatStream(
+  message: string,
+  token: string,
+  onChunk: (text: string) => void,
+  onDone: (final: ChatResponse) => void,
+  onError: (message: string) => void,
+): Promise<void> {
+  await ensureFreshToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const accessToken = token ?? useAuthStore.getState().token;
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const body = JSON.stringify({ message, stream: true });
+
+  let response = await fetch(`${BASE_URL}/agents/chat`, { method: "POST", headers, body });
+  if (response.status === 401) {
+    const { refreshToken } = useAuthStore.getState();
+    if (!refreshToken) {
+      clearSession("Your session is no longer valid. Please sign in again.");
+      throw new ApiError(401, "Session expired");
+    }
+    await refreshAccessToken();
+    headers["Authorization"] = `Bearer ${useAuthStore.getState().token}`;
+    response = await fetch(`${BASE_URL}/agents/chat`, { method: "POST", headers, body });
+  }
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const data = await response.json();
+      detail = data.detail ?? detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(response.status, detail);
+  }
+  if (!response.body) throw new ApiError(500, "Stream unavailable");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const handlers = { onChunk, onDone, onError };
+  let buffer = "";
+  let finished = false;
+  while (!finished) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while (!finished && (sep = buffer.indexOf("\n\n")) !== -1) {
+      const raw = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      finished = handleStreamEvent(raw, handlers);
+    }
+  }
+  if (!finished && buffer.trim()) {
+    handleStreamEvent(buffer, handlers);
+  }
+}
 
 export interface PredictionRow {
   student_id: string;
@@ -170,60 +261,6 @@ export const authApi = {
   login: (username: string, password: string) =>
     api<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
   me: (token: string) => api<UserInfo>("/auth/me", {}, token),
-};
-
-export const agentApi = {
-  chat: (message: string, token: string) =>
-    api<ChatResponse>("/agents/chat", { method: "POST", body: JSON.stringify({ message }) }, token),
-  chatStream: async (
-    message: string,
-    token: string,
-    onEvent: (event: StreamEvent) => void,
-    signal?: AbortSignal,
-  ): Promise<void> => {
-    await ensureFreshToken();
-    const response = await fetch(`${BASE_URL}/agents/chat/stream`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ message }),
-      signal,
-    });
-    if (response.status === 401) {
-      clearSession("Your session is no longer valid. Please sign in again.");
-      throw new ApiError(401, "Session expired");
-    }
-    if (!response.ok) {
-      throw new ApiError(response.status, response.statusText);
-    }
-    if (!response.body) throw new ApiError(0, "Streaming not supported");
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let boundary = buffer.indexOf("\n\n");
-      while (boundary !== -1) {
-        const block = buffer.slice(0, boundary);
-        buffer = buffer.slice(boundary + 2);
-        for (const line of block.split("\n")) {
-          if (line.startsWith("data: ")) {
-            try {
-              onEvent(JSON.parse(line.slice(6)) as StreamEvent);
-            } catch {
-              /* ignore malformed frames */
-            }
-          }
-        }
-        boundary = buffer.indexOf("\n\n");
-      }
-    }
-  },
 };
 
 export const predictionApi = {

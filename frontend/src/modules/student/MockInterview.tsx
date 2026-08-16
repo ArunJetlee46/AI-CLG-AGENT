@@ -5,6 +5,7 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
+import { Input } from "@/core/components/ui/input";
 import { studentApi, type InterviewQuestion, type InterviewScore } from "@/modules/student/api";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -57,11 +58,11 @@ export function MockInterview() {
         </CardHeader>
         <CardContent>
           <form onSubmit={ask} className="flex flex-wrap items-center gap-3">
-            <input
+            <Input
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="e.g. Data Analyst"
-              className="h-9 w-64 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              className="w-64"
             />
             <Button type="submit" disabled={busy === "ask" || !role.trim()}>
               <RefreshCw className={`mr-1.5 h-4 w-4 ${busy === "ask" ? "animate-spin" : ""}`} /> New question

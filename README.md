@@ -25,46 +25,22 @@
 | **📈 ML Pipeline** | XGBoost/LightGBM with MLflow tracking, SHAP explainability, drift monitoring |
 | **🔐 Production-Ready Auth** | JWT + refresh tokens, RBAC, audit logging with hash-chained integrity |
 
----
+## What's in the box
 
-## 🏗️ Tech Stack
+The assistant is a LangGraph supervisor with specialist agents (academic, success, resources, placement, attendance, exam, advising), all orchestrated in a single request pipeline. Recent capability themes:
 
-| Layer | Technology |
-|-------|------------|
-| **Agent Orchestration** | LangGraph (supervisor → planner → specialists → reflect → debate → terminal) |
-| **LLM Gateway** | Groq (Llama 3.3 70B) → Gemini Flash → Ollama (local fallback) |
-| **Embeddings** | BAAI/bge-small-en-v1.5 (local); bge-reranker-base |
-| **Backend** | FastAPI, Celery + Redis, python-jose, passlib (bcrypt) |
-| **Databases** | PostgreSQL (primary), Neo4j (graph), Qdrant (vectors), Redis (cache/queue) |
-| **ML/Ops** | scikit-learn, XGBoost, LightGBM, SHAP, OR-Tools, MLflow |
-| **Frontend** | React 18 + Vite, shadcn/ui, Tailwind CSS, Zustand, TanStack Query, Recharts |
-| **Observability** | Prometheus metrics, structured audit logs, decision cards, Sentry-ready |
+| Theme | What it added |
+|---|---|
+| **A. Personalization** | Agent responses are personalized per student (risk, GPA, attendance, placement readiness) using a 4-stage reasoning loop — router, planner, reflect (critic off by default, `AGENT_LLM_REASONING_STAGES`). |
+| **B. Persistent memory** | Every conversation is saved to `conversations` / `conversation_messages` (SQLite or Postgres) with per-actor pruning, so a student's history survives restarts and flows back into chat. |
+| **C. Security hardening** | Refresh tokens with `jti` rotation + reuse detection (a replayed token revokes the whole chain, `401 token_reuse_detected`), `POST /auth/logout`, SlowAPI rate limits on login and chat, CORS policy from settings. |
+| **D. Groq streaming** | `POST /agents/chat` with `{"stream": true}` returns an SSE stream (`chunk` / `done` / `error` events) with Groq as the primary streaming provider (Gemini/Ollama/local fallback emit whole-text). The web chat renders tokens live. |
+| **E. Database → RAG backfill** | Live DB rows (courses, lecturers, rooms, companies, drives, resources, announcements, research, industry partners, aggregate student stats) are ingested into the vector store + keyword index and persisted to `data/database_rag.jsonl` so restarts rebuild instantly. Runs at boot and on demand via `POST /admin/rag-backfill`. Student PII never enters the corpus — only aggregate numbers. |
+| **F. Final hardening + docs** | Web SSE consumption with session-refresh retry, dead-code removal, README/docs polish. |
 
----
+All six themes are committed and pushed to `main`. The full backend suite (`pytest`) is green, and the frontend passes `tsc --noEmit` + vitest.
 
-## 📸 Demo Preview
-
-### Student Dashboard
-![Student Dashboard](docs/assets/student-dashboard.png)
-
-### Faculty Copilot
-![Faculty Copilot](docs/assets/faculty-copilot.png)
-
-### Placement Analytics
-![Placement Analytics](docs/assets/placement-analytics.png)
-
-### Agent Trace Panel (Showcase)
-![Agent Trace](docs/assets/agent-trace.png)
-
----
-
-## 🚀 Quickstart (Docker - Recommended)
-
-### Prerequisites
-- Docker Desktop / Docker Engine + Docker Compose
-- 8GB+ RAM recommended
-
-### One-Command Launch
+## Quickstart (Docker)
 
 ```bash
 # 1. Clone and configure
@@ -174,6 +150,19 @@ uvicorn app.main:app --reload
 - SQLite by default (`beru.db`) — no Postgres needed for dev
 - Set `DATABASE_URL` in `.env` for PostgreSQL
 
+Streaming chat example:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"23AD001","password":"student123"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+curl -s -N -X POST http://localhost:8000/api/v1/agents/chat \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"message":"what are the tuition fees","stream":true}'
+# -> data: {"type":"chunk","content":"..."} ... data: {"type":"done","intent":"academic",...}
+```
+
 ### Frontend
 
 ```bash
@@ -208,33 +197,21 @@ python -m synthetic.cli --students 500 --courses 40 --seed 42 --out ../data
 AI-CLG-AGENT/
 ├── backend/
 │   ├── app/
-│   │   ├── agents/           # LangGraph supervisor + 4 specialists
-│   │   ├── api/routes/       # REST endpoints (auth, students, faculty, placement, agents, admin)
-│   │   ├── core/             # Security, audit, exceptions, safety
-│   │   ├── ml/               # Features, training, prediction, optimization
-│   │   ├── models/           # SQLAlchemy entities
-│   │   ├── schemas/          # Pydantic contracts
-│   │   ├── services/         # Domain services (RAG, LLM, graph, ML, notifications)
-│   │   └── workers/          # Celery tasks
-│   ├── scripts/
-│   │   └── seed_demo.py      # 🌟 Rich demo data seeder
-│   ├── synthetic/            # Deterministic data generator
-│   ├── finetuning/           # LoRA/QLoRA training scripts
-│   └── tests/                # 20+ test modules
-├── frontend/
-│   ├── src/
-│   │   ├── modules/
-│   │   │   ├── student/      # Student dashboard, tools, insights
-│   │   │   ├── faculty/      # Faculty copilot, tools, reports
-│   │   │   ├── placement/    # Drives, matching, analytics
-│   │   │   ├── admin/        # Admin center, analytics
-│   │   │   ├── common/       # Chat, analytics, 🌟 Agent Trace Panel
-│   │   │   └── shared/       # 🌟 AgentTracePanel.tsx
-│   │   └── core/             # Layout, auth, API client, UI components
-├── data/                     # Curriculum corpus (229 chunks)
-├── docs/
-│   └── architecture.md       # 🌟 Full architecture with Mermaid diagrams
-└── docker-compose.yml        # Full stack orchestration
+│   │   ├── agents/        # LangGraph supervisor + specialist agents, memory, state
+│   │   ├── api/routes/    # auth, agents (SSE streaming), approvals, audit, admin
+│   │   ├── core/          # security (JWT/bcrypt + refresh rotation), rate limiting, audit
+│   │   ├── ml/            # features, train, predict, SHAP explain (lazy-loaded)
+│   │   ├── models/        # SQLAlchemy entities (incl. RefreshToken, conversations)
+│   │   ├── schemas/       # Pydantic contracts
+│   │   ├── services/      # LLM gateway (Groq→Gemini→Ollama), RAG, DB→RAG backfill
+│   │   └── workers/       # Celery app + tasks
+│   ├── finetuning/        # LoRA/QLoRA training scripts + datasets (offline)
+│   ├── synthetic/         # deterministic synthetic data generator (CLI + API)
+│   └── tests/
+├── frontend/              # React + Vite + shadcn/ui (SSE live-rendered chat)
+├── data/                  # shared KB corpus, course index, database_rag.jsonl (gitignored)
+├── docs/                  # Phase 1 & Phase 2 documents
+└── .github/workflows/     # CI
 ```
 
 ---
@@ -252,9 +229,19 @@ See `.env.example` for full list. Key variables:
 | `GROQ_API_KEY` | *empty* | Cloud LLM (primary) |
 | `GEMINI_API_KEY` | *empty* | Cloud LLM (secondary) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local LLM fallback |
-| `LLM_PROVIDER_ORDER` | `groq,gemini,ollama` | Fallback chain |
-| `JWT_SECRET` | `dev-secret-change-me` | **Change in production!** |
-| `DEFAULT_ADMIN_PASSWORD` | `admin123` | **Change in production!** |
+| `LLM_PROVIDER_ORDER` | `groq,ollama,gemini` | Fallback chain order |
+| `AGENT_LLM_REASONING_STAGES` | `router,planner,reflect` | Reasoning stages run by the supervisor |
+| `EMBEDDING_BACKEND` | `onnx` | Local embedding backend (`onnx` or `local`) |
+| `DB_RAG_BACKFILL_ENABLED` | `true` | Boot-time DB → RAG backfill + `database_rag.jsonl` write |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed origins; production refuses `*` |
+| `LOGIN_RATE_LIMIT` / `CHAT_RATE_LIMIT` | `10/minute` / `60/minute` | SlowAPI limits on `/auth/login` and `/agents/chat` |
+| `COLLEGE_AI_URL` / `COLLEGE_AI_TIMEOUT_SECONDS` | removed | Former separate service — curriculum RAG is now in-process |
+| `CURRICULUM_RAG_ENABLED` | `true` | Toggle the in-process curriculum RAG fallback |
+| `CURRICULUM_RAG_JSONL` | `../data/anna_university_aids_reg2021_rag.jsonl` | Curriculum corpus (229 chunks) |
+| `CURRICULUM_COLLECTION` | `curriculum_documents` | ChromaDB/Qdrant collection for the curriculum corpus |
+| `CURRICULUM_SIMILARITY_THRESHOLD` | `0.35` | Min score for curriculum evidence |
+| `JWT_SECRET` | dev-secret | Token signing |
+| `DEFAULT_ADMIN_USER` / `DEFAULT_ADMIN_PASSWORD` | admin / admin123 | Seeded admin on first boot |
 
 ---
 

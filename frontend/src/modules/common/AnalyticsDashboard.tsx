@@ -50,7 +50,7 @@ export function AnalyticsDashboard() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Analytics Dashboard"
-        subtitle="Risk distribution across all four ML tasks (numpy logistic regression, Phase 9)"
+        subtitle="Risk distribution across all four ML tasks"
         icon={TrendingUp}
       />
 

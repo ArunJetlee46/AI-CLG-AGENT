@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
 
+    cors_origins: str = "*"  # comma-separated allowlist; "*" only safe in development
+    login_rate_limit: str = "10/minute"  # slowapi "count/period" for /auth/login
+    chat_rate_limit: str = "60/minute"  # slowapi "count/period" for /agents/chat
+
     database_url: str = "sqlite:///./beru.db"
     redis_url: str = "redis://localhost:6379/0"
 
@@ -28,8 +32,12 @@ class Settings(BaseSettings):
     vector_store_dir: str = "chroma_data"
     vector_collection: str = "beru_documents"
 
-    embedding_backend: str = "ollama"
+    embedding_backend: str = "ollama"  # ollama | local (sentence-transformers) | onnx
     ollama_embedding_model: str = "nomic-embed-text"
+
+    onnx_model_dir: str = "models/onnx"
+    onnx_embedding_repo: str = "Xenova/bge-small-en-v1.5"
+    onnx_reranker_repo: str = "Xenova/bge-reranker-base"
 
     llm_provider_order: str = "groq,gemini,ollama"
     groq_api_key: str = ""
@@ -40,6 +48,12 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2:3b"
     llm_timeout_seconds: int = 120
     llm_circuit_breaker_failures: int = 3
+    llm_down_cooldown_seconds: int = 15  # skip all providers after a total outage, until this window passes
+    llm_reasoning_max_tokens: int = 120  # cap generation for router/planner/reflect/critic stages
+    ollama_keep_alive: str = "10m"  # keep the Ollama model resident between calls (kill cold-start spikes)
+
+    agent_llm_reasoning: bool = True  # LLM router/planner/reflect/debate; rules when the gateway is down
+    agent_llm_reasoning_stages: str = "router,planner,reflect,critic"  # gate each reasoning stage
 
     # Use the LLM gateway for intent routing / planning (fallback: keyword rules)
     llm_router_enabled: bool = True
@@ -58,6 +72,8 @@ class Settings(BaseSettings):
     data_dir: str = "../data"
     knowledge_data_dir: str = "../data"
     knowledge_source_label: str = "Anna University AI&DS Regulations 2021"
+
+    db_rag_backfill_enabled: bool = True  # render DB rows into the RAG corpus at boot
 
     curriculum_rag_enabled: bool = True
     curriculum_rag_jsonl: str = "../data/anna_university_aids_reg2021_rag.jsonl"
@@ -81,9 +97,8 @@ class Settings(BaseSettings):
         return [p.strip().lower() for p in self.llm_provider_order.split(",") if p.strip()]
 
     @property
-    def data_path(self) -> Path:
-        """Resolve data directory - works for both local dev and Docker."""
-        return Path(self.data_dir).resolve()
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache

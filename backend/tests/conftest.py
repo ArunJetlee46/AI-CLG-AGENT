@@ -5,7 +5,14 @@ os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mkdtemp()}/test.db"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["LLM_PROVIDER_ORDER"] = "ollama"
 os.environ["OLLAMA_BASE_URL"] = "http://localhost:9"  # unreachable -> forces local-fallback path
+os.environ["GROQ_API_KEY"] = ""  # hermetic: a dev key in .env must never leak into tests
+os.environ["GEMINI_API_KEY"] = ""  # hermetic: same for Gemini
+os.environ["AGENT_LLM_REASONING_STAGES"] = "router,planner,reflect,critic"  # exercise every stage in tests
 os.environ["CURRICULUM_RAG_ENABLED"] = "false"  # tests must not depend on the curriculum RAG
+os.environ["EMBEDDING_BACKEND"] = "local"  # tests never download ONNX artifacts -> hash embeddings
+os.environ["LOGIN_RATE_LIMIT"] = "10000/minute"  # suite logs in repeatedly; the 429 path is tested separately
+os.environ["CHAT_RATE_LIMIT"] = "10000/minute"  # same for the chat endpoint
+os.environ["DB_RAG_BACKFILL_ENABLED"] = "false"  # boot backfill is covered by its own unit tests
 
 import pytest
 

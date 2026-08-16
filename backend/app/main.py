@@ -6,6 +6,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest, multiprocess
 from prometheus_client import Counter
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import select
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -35,6 +37,7 @@ from app.core.exceptions import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
+from app.core.ratelimit import limiter
 from app.core.security import hash_password
 from app.db import SessionLocal, init_db
 from app.models.entities import User
@@ -61,6 +64,8 @@ def assert_secure_boot(settings) -> None:
         problems.append("SECRET_KEY is still the documented default 'dev-secret-change-me'")
     if settings.default_admin_password == _DEFAULT_ADMIN_PASSWORD:
         problems.append("DEFAULT_ADMIN_PASSWORD is still the documented default 'admin123'")
+    if "*" in settings.cors_origin_list:
+        problems.append("CORS_ORIGINS is wide open ('*')")
     if problems:
         raise RuntimeError(
             "Refusing to start in production: " + "; ".join(problems)
@@ -254,6 +259,21 @@ def seed_knowledge_base() -> None:
     logger.info("Seeded knowledge base: %s", stats)
 
 
+def seed_db_rag_backfill() -> None:
+    """Render real database rows (courses, lecturers, placements, ...) into the
+    RAG corpus so answers can be grounded on the institution's actual data."""
+    if not settings.db_rag_backfill_enabled:
+        logger.info("Database RAG backfill disabled (DB_RAG_BACKFILL_ENABLED=false)")
+        return
+    try:
+        from app.services.rag.backfill import backfill_from_db
+
+        stats = backfill_from_db()
+        logger.info("Database RAG backfill complete: %s", stats)
+    except Exception as exc:  # noqa: BLE001 - a failing backfill must not stop boot
+        logger.warning("Database RAG backfill failed: %s", exc)
+
+
 def seed_curriculum_knowledge_base() -> None:
     from app.services.pipeline import ingest_curriculum
 
@@ -288,26 +308,52 @@ async def lifespan(app: FastAPI):
     seed_default_admin()
     seed_demo_users()
     seed_knowledge_base()
+    seed_db_rag_backfill()
     seed_curriculum_knowledge_base()
     yield
 
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
+cors_origins = settings.cors_origin_list
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["*"] if "*" in cors_origins else cors_origins,
+    allow_credentials="*" in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
 app.middleware("http")(request_context_middleware)
+
+
+@app.middleware("http")
+async def count_requests(request, call_next):
+    response = await call_next(request)
+    REQUESTS.labels(method=request.method, path=request.url.path, status=response.status_code).inc()
+    return response
+
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
+
+
+async def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests, slow down", "code": "rate_limited"},
+        headers={"Retry-After": "60"},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")

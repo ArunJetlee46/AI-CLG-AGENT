@@ -7,6 +7,7 @@ class AgentState(TypedDict, total=False):
     memory: list[dict[str, str]]          # recent history loaded by memory node
     intent: str
     plan: list[str]                       # planner output: ordered execution steps
+    llm_plan: list[str]                   # fused router/planner LLM steps (transient, router -> planner)
     # specialist output
     agent: str
     answer: str
@@ -28,3 +29,6 @@ class AgentState(TypedDict, total=False):
     audit_events: list[dict[str, Any]]
     actor: str
     actor_id: str
+    student_id: str                  # resolved caller student id ("" when not a student)
+    session_id: str | None           # chat thread id (None = single default thread)
+    stream_callback: Any             # token sink for SSE answers (set by streaming chat)
