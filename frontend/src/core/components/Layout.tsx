@@ -44,6 +44,7 @@
   Landmark,
   Waves,
   X,
+  MessagesSquare,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -79,6 +80,9 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/student/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["student"] },
       { to: "/student/insights", label: "My Insights", icon: TrendingUp, roles: ["student"] },
       { to: "/student/community", label: "Community", icon: Trophy, roles: ["student"] },
+      { to: "/student/schedule", label: "My Schedule", icon: CalendarClock, roles: ["student"] },
+      { to: "/student/placements", label: "My Placements", icon: Handshake, roles: ["student"] },
+      { to: "/student/study-assist", label: "Study Assistant", icon: MessagesSquare, roles: ["student"] },
       { to: "/student/exam-prep", label: "Exam Prep", icon: BookOpen, roles: ["student"] },
       { to: "/student/assignment-assistant", label: "Assignments", icon: ClipboardList, roles: ["student"] },
       { to: "/student/mock-interview", label: "Mock Interview", icon: Users, roles: ["student"] },

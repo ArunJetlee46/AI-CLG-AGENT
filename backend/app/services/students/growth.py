@@ -22,8 +22,12 @@ from app.models.entities import (
     AttendanceRecord,
     Course,
     Enrollment,
+    Lecturer,
     Result,
+    Room,
     Student,
+    TimetableEntry,
+    User,
 )
 from app.services import students
 from app.services.prereqs import prereq_status
@@ -534,6 +538,57 @@ def get_digital_twin(db: Session, student: Student) -> dict:
         "weaknesses": [a["area"] for a in weak["areas"][:3]],
         "next_best_actions": [a["recommendation"] for a in weak["areas"][:3]],
         "generated_at": datetime.utcnow().isoformat(),
+    }
+
+
+WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def get_timetable(db: Session, student: Student) -> dict:
+    course_ids = {
+        c
+        for (c,) in db.execute(
+            select(Enrollment.course_id).where(
+                Enrollment.student_id == student.id, Enrollment.status == "approved"
+            )
+        ).all()
+    }
+
+    entries: list[dict] = []
+    if course_ids:
+        rows = db.execute(
+            select(TimetableEntry, Course, Room, Lecturer, User)
+            .join(Course, TimetableEntry.course_id == Course.id)
+            .join(Room, TimetableEntry.room_id == Room.id)
+            .join(Lecturer, TimetableEntry.lecturer_id == Lecturer.id)
+            .join(User, Lecturer.user_id == User.id)
+            .where(TimetableEntry.course_id.in_(course_ids))
+        ).all()
+        day_idx = {d: i for i, d in enumerate(WEEK_DAYS)}
+        for entry, course, room, lecturer, user in rows:
+            entries.append({
+                "day": entry.day,
+                "term": entry.term or "",
+                "start_time": entry.start_time.strftime("%H:%M"),
+                "end_time": entry.end_time.strftime("%H:%M"),
+                "course_code": course.code,
+                "course_title": course.title,
+                "credits": course.credits,
+                "room": room.room_no,
+                "lecturer": user.username,
+            })
+        entries.sort(key=lambda e: (day_idx.get(e["day"], 99), e["start_time"]))
+
+    by_day: dict[str, list[dict]] = {}
+    for entry in entries:
+        by_day.setdefault(entry["day"], []).append(entry)
+
+    return {
+        "student_id": student.student_id,
+        "method": "enrolled-courses-timetable",
+        "days": [day for day in WEEK_DAYS if day in by_day],
+        "entries": entries,
+        "by_day": by_day,
     }
 
 

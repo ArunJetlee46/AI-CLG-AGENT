@@ -10,8 +10,8 @@ from app.schemas.faculty import (
     ProjectMentorRequest,
     ResumeRequest,
 )
-from app.schemas.students import AdviseRequest
-from app.services import student_growth, student_tools, students
+from app.schemas.students import AdviseRequest, AskRequest
+from app.services import student_assistant, student_growth, student_placements, student_tools, students
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/students", tags=["students"])
@@ -147,6 +147,25 @@ def my_resume_ats(
     db: Session = Depends(get_db),
 ) -> dict:
     return student_tools.get_resume_ats(db, _current_student(db, user), body.resume_text)
+
+
+@router.get("/me/timetable")
+def my_timetable(user: User = Depends(require_role("student")), db: Session = Depends(get_db)) -> dict:
+    return student_growth.get_timetable(db, _current_student(db, user))
+
+
+@router.get("/me/placements")
+def my_placements(user: User = Depends(require_role("student")), db: Session = Depends(get_db)) -> dict:
+    return student_placements.get_placements(db, _current_student(db, user))
+
+
+@router.post("/me/ask")
+def my_ask(
+    body: AskRequest,
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    return student_assistant.ask(db, _current_student(db, user), body.question)
 
 
 @router.post("/me/project-mentor")
