@@ -6,6 +6,7 @@ from app.models.entities import User
 from app.schemas.faculty import (
     AssignmentEvalRequest,
     CodeReviewRequest,
+    FacultyAskRequest,
     LabAssistantRequest,
     LessonPlanRequest,
     SimilarityRequest,
@@ -242,3 +243,20 @@ def tool_viva_questions(
     db: Session = Depends(get_db),
 ) -> dict:
     return faculty_tools.get_viva_questions(db, _current_lecturer(db, user), course_code, topic, count)
+
+
+@router.get("/me/placement-overview")
+def my_placement_overview(
+    user: User = Depends(require_role("lecturer", "admin")),
+    db: Session = Depends(get_db),
+) -> dict:
+    return faculty.get_placement_overview(db, _current_lecturer(db, user))
+
+
+@router.post("/me/ask")
+def my_ask(
+    body: FacultyAskRequest,
+    user: User = Depends(require_role("lecturer", "admin")),
+    db: Session = Depends(get_db),
+) -> dict:
+    return faculty.ask_question(db, _current_lecturer(db, user), body.question)

@@ -347,6 +347,29 @@ export interface AuditLogResult {
   entries: AuditEntry[];
 }
 
+export interface FacultyPlacementStudent {
+  student_id: string;
+  readiness_score: number;
+  band: string;
+  placement_probability: number | null;
+  drivers: string[];
+}
+
+export interface FacultyPlacementOverview {
+  staff_id: string;
+  method: string;
+  students: FacultyPlacementStudent[];
+  summary: { total: number; ready: number; needs_improvement: number; not_ready: number };
+}
+
+export interface FacultyStudyAnswer {
+  staff_id: string;
+  answer: string;
+  sources: { document: string; page_start: number | null; course_code: string | null; score: number }[];
+  retrieved: unknown[];
+  grounded: boolean;
+}
+
 export const facultyApi = {
   me: (token: string) => api<FacultyProfile>("/faculty/me", {}, token),
   overview: (token: string) => api<FacultyOverview>("/faculty/overview", {}, token),
@@ -405,4 +428,7 @@ export const facultyApi = {
   copilotStatus: (token: string) => api<CopilotStatus>("/faculty/copilot-status", {}, token),
   auditLog: (token: string, limit = 50, offset = 0) =>
     api<AuditLogResult>(`/faculty/me/audit?limit=${limit}&offset=${offset}`, {}, token),
+  placementOverview: (token: string) => api<FacultyPlacementOverview>("/faculty/me/placement-overview", {}, token),
+  askStudyAssistant: (token: string, question: string) =>
+    api<FacultyStudyAnswer>("/faculty/me/ask", { method: "POST", body: JSON.stringify({ question }) }, token),
 };

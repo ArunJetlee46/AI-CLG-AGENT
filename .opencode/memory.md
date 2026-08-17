@@ -18,6 +18,7 @@
   - `04101bc` (Theme A)
 - Backend suite: 34 student tests pass; 2 pre-existing ML failures (attendance seed + mlflow) unrelated to our work.
 - GROQ API key in `backend/.env` (gitignored — never commit secrets).
+- Faculty module enhancement: Faculty Schedule (standalone page), Placement Oversight, Faculty Study Assistant + 7 new frontend tests.
 - Frontend verification commands run from `C:\Users\ACER\Desktop\ai pro\frontend`: `npm run typecheck` (tsc --noEmit) and `npm test` (vitest run) both EXIT=0.
 - Frontend test setup: vitest `jsdom` environment, `include: ["src/**/*.test.{ts,tsx}"]`, setupFiles `src/core/lib/__tests__/setup.ts` (stubs matchMedia, ResizeObserver, Element.scrollTo). DevDeps: `jsdom`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/jest-dom`.
 - Shared components: `ui/select.tsx`, `ui/dialog.tsx`, `ui/error-state.tsx`, `ui/skeleton.tsx`, `ui/empty-state.tsx`, `Textarea` from `ui/input.tsx`, `Button` defaults `type="button"`.

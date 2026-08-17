@@ -96,6 +96,8 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/faculty/intelligence", label: "Faculty Intelligence", icon: Brain, roles: ["lecturer"] },
       { to: "/faculty/course-reports", label: "Course Reports", icon: FileBarChart, roles: ["lecturer"] },
       { to: "/faculty/remedial", label: "Remedial Plans", icon: LifeBuoy, roles: ["lecturer"] },
+      { to: "/faculty/schedule", label: "My Schedule", icon: CalendarClock, roles: ["lecturer"] },
+      { to: "/faculty/placements", label: "Placement Overview", icon: Handshake, roles: ["lecturer"] },
       { to: "/faculty/similarity", label: "Similarity Check", icon: CopyX, roles: ["lecturer"] },
       { to: "/admin", label: "Command Center", icon: ShieldCheck, roles: ["admin"] },
     ],

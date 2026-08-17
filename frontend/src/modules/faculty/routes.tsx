@@ -9,6 +9,8 @@ import { FacultyCopilot } from "./FacultyCopilot";
 import { FacultyDashboard } from "./FacultyDashboard";
 import { FacultyIntelligence } from "./FacultyIntelligence";
 import { FacultyLanding } from "./FacultyLanding";
+import { FacultyPlacements } from "./FacultyPlacements";
+import { FacultySchedule } from "./FacultySchedule";
 import { FacultyTools } from "./FacultyTools";
 import { LabAssistant } from "./LabAssistant";
 import { LessonPlan } from "./LessonPlan";
@@ -27,6 +29,8 @@ export const moduleRoutes: ModuleRoute[] = [
   { path: "/faculty/course-reports", element: <CourseReports />, roles: ["lecturer", "admin"] },
   { path: "/faculty/similarity", element: <Similarity />, roles: ["lecturer", "admin"] },
   { path: "/faculty/remedial", element: <Remedial />, roles: ["lecturer", "admin"] },
+  { path: "/faculty/schedule", element: <FacultySchedule />, roles: ["lecturer", "admin"] },
+  { path: "/faculty/placements", element: <FacultyPlacements />, roles: ["lecturer", "admin"] },
   { path: "/faculty/announcements", element: <Announcements />, roles: ["lecturer", "admin"] },
   { path: "/faculty/tools", element: <FacultyTools />, roles: ["lecturer", "admin"] },
   { path: "/faculty/tools/question-paper", element: <QuestionPaper />, roles: ["lecturer", "admin"] },
