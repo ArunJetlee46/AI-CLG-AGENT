@@ -9,6 +9,7 @@ import { Select } from "@/core/components/ui/select";
 import { facultyApi, type QuestionPaper as QuestionPaperResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { ProviderBadge, CourseChips } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 export function QuestionPaper() {
   const token = useAuthStore((s) => s.token);
@@ -71,6 +72,7 @@ export function QuestionPaper() {
                 <p className="mt-1 text-xs text-[var(--muted-foreground)]">Rubric: {q.rubric}</p>
               </div>
             ))}
+            <ToolExportBar data={result} label={result.topic || "Question Paper"} />
           </CardContent>
         </Card>
       )}

@@ -9,6 +9,7 @@ import {
   Handshake,
   LayoutDashboard,
   LifeBuoy,
+  MessagesSquare,
   ScrollText,
   Sparkles,
   TrendingDown,
@@ -31,6 +32,7 @@ const TOOLS = [
   { to: "/faculty/tools", label: "Faculty Tools", blurb: "Question papers, lesson plans, evaluation, code review, lab.", icon: Wrench, accent: "text-indigo-600 bg-indigo-100" },
   { to: "/faculty/schedule", label: "My Schedule", blurb: "Weekly teaching timetable across your assigned courses.", icon: CalendarClock, accent: "text-indigo-600 bg-indigo-100" },
   { to: "/faculty/placements", label: "Placement Overview", blurb: "Placement readiness of students in your courses.", icon: Handshake, accent: "text-emerald-600 bg-emerald-100" },
+  { to: "/faculty/study-assist", label: "Study Assistant", blurb: "Curriculum-grounded Q&A for your courses.", icon: MessagesSquare, accent: "text-teal-600 bg-teal-100" },
   { to: "/faculty/audit", label: "Audit Log", blurb: "Approved interventions and every tracked action.", icon: ScrollText, accent: "text-slate-600 bg-slate-100" },
 ] as const;
 

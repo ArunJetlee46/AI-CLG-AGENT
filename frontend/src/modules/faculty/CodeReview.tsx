@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { facultyApi, type CodeReview as CodeReviewResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { ProviderBadge } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 const sevTone = (s: string) => (s === "high" ? "destructive" : s === "medium" ? "warning" : "neutral");
 
@@ -86,6 +87,7 @@ export function CodeReview() {
                 {result.suggestions.map((s) => <li key={s}>{s}</li>)}
               </ul>
             </div>
+            <ToolExportBar data={result} label="Code Review" />
           </CardContent>
         </Card>
       )}
