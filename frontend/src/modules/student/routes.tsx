@@ -11,12 +11,10 @@ import { ProjectMentor } from "./ProjectMentor";
 import { ResumeATS } from "./ResumeATS";
 import { Schedule } from "./Schedule";
 import { StudentDashboard } from "./StudentDashboard";
-import { StudentLanding } from "./StudentLanding";
 import { StudyAssist } from "./StudyAssist";
 
 export const moduleRoutes: ModuleRoute[] = [
-  { path: "/student", element: <StudentLanding />, roles: ["student"] },
-  { path: "/student/dashboard", element: <StudentDashboard />, roles: ["student"] },
+  { path: "/student", element: <StudentDashboard />, roles: ["student"] },
   { path: "/student/insights", element: <Insights />, roles: ["student"] },
   { path: "/student/community", element: <Community />, roles: ["student"] },
   { path: "/student/schedule", element: <Schedule />, roles: ["student"] },

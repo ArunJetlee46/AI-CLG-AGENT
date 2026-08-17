@@ -28,16 +28,8 @@ const queryClient = new QueryClient({
   },
 });
 
-function registerSW() {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  }
-}
-
 function App() {
   useEffect(() => {
-    registerSW();
-
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error("[UnhandledRejection]", event.reason);
       event.preventDefault();

@@ -79,8 +79,7 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
     title: "Assistants",
     items: [
       { to: "/chat", label: "AI Assistant", icon: Bot, roles: ["student", "lecturer", "placement"] },
-      { to: "/student", label: "Student Home", icon: GraduationCap, roles: ["student"] },
-      { to: "/student/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["student"] },
+      { to: "/student", label: "Overview", icon: LayoutDashboard, roles: ["student"] },
       { to: "/student/insights", label: "My Insights", icon: TrendingUp, roles: ["student"] },
       { to: "/student/community", label: "Community", icon: Trophy, roles: ["student"] },
       { to: "/student/schedule", label: "My Schedule", icon: CalendarClock, roles: ["student"] },
@@ -156,7 +155,7 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
 ];
 
 const OVERVIEW_HOME: Record<string, { to: string; label: string; icon: typeof Bot }> = {
-  student: { to: "/student", label: "Welcome", icon: GraduationCap },
+  student: { to: "/student", label: "Overview", icon: LayoutDashboard },
   lecturer: { to: "/faculty", label: "Faculty", icon: Users },
   placement: { to: "/placement", label: "Placement Welcome", icon: Home },
   admin: { to: "/admin", label: "Command Center", icon: ShieldCheck },
