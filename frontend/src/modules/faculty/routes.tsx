@@ -5,7 +5,6 @@ import { AssignmentEval } from "./AssignmentEval";
 import { CodeReview } from "./CodeReview";
 import { CourseReports } from "./CourseReports";
 import { FacultyAudit } from "./FacultyAudit";
-import { FacultyCopilot } from "./FacultyCopilot";
 import { FacultyDashboard } from "./FacultyDashboard";
 import { FacultyIntelligence } from "./FacultyIntelligence";
 import { FacultyLanding } from "./FacultyLanding";
@@ -24,7 +23,6 @@ import { VivaQuestions } from "./VivaQuestions";
 
 export const moduleRoutes: ModuleRoute[] = [
   { path: "/faculty", element: <FacultyLanding />, roles: ["lecturer", "admin"] },
-  { path: "/faculty/copilot", element: <FacultyCopilot />, roles: ["lecturer", "admin"] },
   { path: "/faculty/dashboard", element: <FacultyDashboard />, roles: ["lecturer", "admin"] },
   { path: "/faculty/audit", element: <FacultyAudit />, roles: ["lecturer", "admin"] },
   { path: "/faculty/intelligence", element: <FacultyIntelligence />, roles: ["lecturer", "admin"] },

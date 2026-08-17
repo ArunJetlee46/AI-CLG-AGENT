@@ -91,7 +91,6 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/student/resume-ats", label: "Resume ATS", icon: FileText, roles: ["student"] },
       { to: "/student/project-mentor", label: "Project Mentor", icon: Rocket, roles: ["student"] },
       { to: "/faculty", label: "Faculty", icon: Users, roles: ["lecturer"] },
-      { to: "/faculty/copilot", label: "Faculty Copilot", icon: Bot, roles: ["lecturer"] },
       { to: "/faculty/announcements", label: "Announcements", icon: Megaphone, roles: ["lecturer"] },
       { to: "/faculty/dashboard", label: "My Dashboard", icon: LayoutDashboard, roles: ["lecturer"] },
       { to: "/faculty/audit", label: "Audit Log", icon: ScrollText, roles: ["lecturer"] },

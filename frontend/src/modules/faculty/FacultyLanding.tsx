@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
-  Bot,
   CalendarClock,
   CopyX,
   FileBarChart,
@@ -18,14 +17,12 @@ import {
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/core/components/ui/badge";
-import { Button } from "@/core/components/ui/button";
 import { facultyApi } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 
 const TOOLS = [
   { to: "/faculty/dashboard", label: "My Dashboard", blurb: "Course health, attendance, at-risk flags and interventions.", icon: LayoutDashboard, accent: "text-sky-600 bg-sky-100" },
   { to: "/faculty/intelligence", label: "Faculty Intelligence", blurb: "AI recommendations, learning outcomes and high performers.", icon: Sparkles, accent: "text-amber-600 bg-amber-100" },
-  { to: "/faculty/copilot", label: "Faculty Copilot", blurb: "Analysis → recommendation → approval → execute → audit pipeline.", icon: Bot, accent: "text-violet-600 bg-violet-100" },
   { to: "/faculty/course-reports", label: "Course Reports", blurb: "Health score, grade distribution and narrative per course.", icon: FileBarChart, accent: "text-emerald-600 bg-emerald-100" },
   { to: "/faculty/similarity", label: "Similarity Check", blurb: "Screening for similar submissions across students.", icon: CopyX, accent: "text-rose-600 bg-rose-100" },
   { to: "/faculty/remedial", label: "Remedial Plans", blurb: "Personalized rescue plans for at-risk students.", icon: LifeBuoy, accent: "text-teal-600 bg-teal-100" },
@@ -67,13 +64,6 @@ export function FacultyLanding() {
             <p className="mt-2 max-w-xl text-sm text-[var(--muted-foreground)]">
               Course health, at-risk signals and LLM tools — from analysis to approved intervention.
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link to="/faculty/copilot">
-              <Button size="lg">
-                Open pipeline <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
-            </Link>
           </div>
         </div>
 
