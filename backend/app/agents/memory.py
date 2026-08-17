@@ -188,7 +188,7 @@ _memory: ConversationMemory | None = None
 def get_memory() -> ConversationMemory:
     global _memory
     if _memory is None:
-        _memory = PersistentConversationMemory()
+        _memory = ConversationMemory()
     return _memory
 
 

@@ -4,6 +4,7 @@ Covers: placement dataset preferring real PlacementSelection records over the
 simulated committee rule, meta provenance fields, and the drift report shape.
 """
 import pytest
+import uuid
 from datetime import date
 
 from app.db import SessionLocal
@@ -14,7 +15,7 @@ from synthetic.generator import SyntheticDataGenerator
 
 
 def _make_drive(db) -> PlacementDrive:
-    company = Company(name=f"DriftCo-{id(db)}", sector="IT")
+    company = Company(name=f"DriftCo-{uuid.uuid4().hex[:10]}", sector="IT")
     db.add(company)
     db.flush()
     drive = PlacementDrive(title="Test Drive", company_id=company.id, drive_date=date(2026, 1, 10))
@@ -37,6 +38,9 @@ def seeded_db():
     yield
     db = SessionLocal()
     try:
+        # Same convention as main's own ML fixtures (e.g. tests/unit/ml/test_ml.py):
+        # wipe every table the generator touched. `tests/api` runs first and owns
+        # the admin login; no later unit test depends on it.
         for table in ("placement_selections", "placement_drives", "attendance", "results",
                       "enrollments", "timetable_entries", "courses", "lecturers", "students",
                       "rooms", "users"):

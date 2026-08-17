@@ -68,20 +68,6 @@ export function Chat() {
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
-    const assistantIndexRef = { current: 0 };
-    setMessages((prev) => {
-      assistantIndexRef.current = prev.length;
-      return [...prev, { role: "user", content: question }, { role: "assistant", content: "" }];
-    });
-    let metaChips = "";
-
-    const patchAnswer = (delta: string) =>
-      setMessages((prev) =>
-        prev.map((message, i) =>
-          i === assistantIndexRef.current ? { ...message, content: message.content + delta } : message
-        )
-      );
-
     try {
       await chatStream(
         question,

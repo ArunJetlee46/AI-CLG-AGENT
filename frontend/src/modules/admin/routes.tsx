@@ -50,5 +50,4 @@ export const moduleRoutes: ModuleRoute[] = [
   { path: "/admin/digital-twin", element: <AdminDigitalTwin />, roles: ["admin"] },
   { path: "/admin/timetable", element: <AdminTimetable />, roles: ["admin"] },
   { path: "/admin/evaluation", element: <AdminEvaluationCenter />, roles: ["admin"] },
-  { path: "/admin/agent-plugins", element: <AgentPluginManager />, roles: ["admin"] },
 ];

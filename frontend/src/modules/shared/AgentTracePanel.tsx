@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { Badge } from "@/core/components/ui/badge";
 import { Button } from "@/core/components/ui/button";
 import { cn } from "@/core/lib/utils";
-import { agentApi, type ChatResponse } from "@/core/lib/api";
+import { chatStream, type ChatResponse } from "@/core/lib/api";
 import { useAuthStore } from "@/core/stores/auth";
 
 export interface AgentTraceStep {
@@ -74,7 +74,17 @@ export function AgentTracePanel() {
       // In reality, the backend runs the full graph synchronously
       // We'll simulate the progression for visualization
       
-      const response = await agentApi.chat(message, token);
+      const response = await new Promise<ChatResponse>((resolve, reject) => {
+        chatStream(
+          message,
+          token,
+          () => {
+            /* chunks streamed live; only the final summary is needed here */
+          },
+          resolve,
+          reject,
+        );
+      });
       setLastResponse(response);
       
       // Animate through the steps based on actual execution path

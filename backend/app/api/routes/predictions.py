@@ -7,6 +7,7 @@ from app.db import get_db
 from app.ml.predict import predict_all, predict_risk
 from app.models.entities import ModelRecord, Prediction
 from app.schemas.admin import PredictionOut
+from app.services.label_drift import compute_label_drift
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 

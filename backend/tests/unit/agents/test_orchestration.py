@@ -1,5 +1,5 @@
 from app.agents.debate import RiskSanityValidator, fuse_confidences
-from app.agents.memory import ConversationMemory, PersistentConversationMemory, memory_node
+from app.agents.memory import ConversationMemory, load_recent, memory_node, persist_turn
 from app.agents.supervisor import (
     _classify,
     _classify_with_llm,
@@ -9,7 +9,6 @@ from app.agents.supervisor import (
     router_node,
 )
 from app.db import SessionLocal
-from app.models.entities import AgentMemory
 from app.services.llm import LLMResponse
 
 
@@ -34,30 +33,19 @@ def test_shared_memory_roundtrip() -> None:
     assert len(state["memory"]) == 2
 
 
-def test_persistent_memory_survives_store_recreation() -> None:
-    actor = f"persist-{id(__import__('sys').modules[__name__])}"
-    store = PersistentConversationMemory()
-    store.clear(actor)
-    store.add(actor, "user", "which students are at risk?")
-    store.add(actor, "assistant", "ADISTU02 is flagged high risk.")
-
+def test_persistent_memory_roundtrip_via_store() -> None:
+    actor = f"persist-orch-{abs(hash(__file__))}"
     db = SessionLocal()
     try:
-        persisted = db.execute(
-            __import__("sqlalchemy").select(AgentMemory)
-            .where(AgentMemory.actor == actor)
-            .order_by(AgentMemory.created_at)
-        ).scalars().all()
-        assert len(persisted) == 2
+        persist_turn(db, actor=actor, role="user", content="which students are at risk?")
+        persist_turn(db, actor=actor, role="assistant", content="ADISTU02 is flagged high risk.")
+        recent = load_recent(db, actor=actor)
+        assert [t["content"] for t in recent] == [
+            "which students are at risk?",
+            "ADISTU02 is flagged high risk.",
+        ]
     finally:
         db.close()
-
-    fresh = PersistentConversationMemory()
-    assert [t["content"] for t in fresh.recent(actor)] == [
-        "which students are at risk?",
-        "ADISTU02 is flagged high risk.",
-    ]
-    fresh.clear(actor)
 
 
 def test_planner_decomposes_multi_domain() -> None:
@@ -96,29 +84,18 @@ def test_supervisor_runs_full_graph_with_new_nodes() -> None:
     assert len(turns) >= 2
 
 
-def test_llm_router_uses_llm_when_confident(monkeypatch) -> None:
-    class FakeGateway:
-        def complete(self, messages, tools=None):
-            return LLMResponse(
-                content="resources", provider="groq", model="fake",
-                latency_ms=1, tokens_in=0, tokens_out=1,
-            )
-
-    monkeypatch.setattr("app.agents.supervisor.get_llm_gateway", lambda: FakeGateway())
+def test_llm_router_uses_fused_plan_when_confident(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.agents.supervisor.plan_intent",
+        lambda text: ("resources", ["multi-domain:risk+timetable", "classify", "execute", "reflect"]),
+    )
     state = {"messages": [{"role": "user", "content": "is the timetable overloaded?"}]}
     router_node(state)
     assert state["intent"] == "resources"
 
 
 def test_llm_router_falls_back_to_keywords_on_local_fallback(monkeypatch) -> None:
-    class FakeGateway:
-        def complete(self, messages, tools=None):
-            return LLMResponse(
-                content="[local-fallback] no model available", provider="local-fallback",
-                model="fallback", latency_ms=1, tokens_in=0, tokens_out=1,
-            )
-
-    monkeypatch.setattr("app.agents.supervisor.get_llm_gateway", lambda: FakeGateway())
+    monkeypatch.setattr("app.agents.supervisor.plan_intent", lambda text: (None, None))
     state = {"messages": [{"role": "user", "content": "which students are at risk of dropout?"}]}
     router_node(state)
     assert state["intent"] == "success"

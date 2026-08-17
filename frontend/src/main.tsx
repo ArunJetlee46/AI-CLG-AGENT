@@ -3,7 +3,6 @@ import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import { HelpAssistant } from "@/core/components/HelpAssistant";
 import { Layout } from "@/core/components/Layout";
 import { ProtectedRoute } from "@/core/components/ProtectedRoute";
 import { Toaster } from "@/core/components/ui/toast";
@@ -58,7 +57,6 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <HelpAssistant />
         <Toaster />
       </BrowserRouter>
     </QueryClientProvider>
@@ -109,7 +107,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <HelpAssistant />
         <Toaster />
       </BrowserRouter>
     </QueryClientProvider>

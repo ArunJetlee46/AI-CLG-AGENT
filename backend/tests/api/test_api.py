@@ -205,6 +205,20 @@ def test_chat_stream_emits_intent_chunk_meta_events() -> None:
     chunks = [event["content"] for event in events if event["type"] == "chunk"]
     assert chunks, "expected at least one answer chunk"
 
+    # success-intent runs can propose interventions -> a pending ApprovalRequest.
+    # Clean it up so `test_command_center_counts_and_kpis` (which asserts
+    # pending_approvals == 0) stays order-independent, mirroring the suite's
+    # existing cleanup convention.
+    if meta.get("approval_id"):
+        db = SessionLocal()
+        try:
+            approval = db.get(ApprovalRequest, meta["approval_id"])
+            if approval is not None:
+                db.delete(approval)
+                db.commit()
+        finally:
+            db.close()
+
 
 # ---------------------------------------------------------------------------
 # Approval lifecycle (HITL gate)
