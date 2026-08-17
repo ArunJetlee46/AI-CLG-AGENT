@@ -2,6 +2,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import numpy as np
+
 from app.config import get_settings
 from app.db import SessionLocal
 from app.ml.datasets import TASKS, build_all
@@ -64,9 +66,14 @@ def train_task(task: str, model_dir: str | None = None, seed: int = 42, use_boos
 
         metrics = evaluate(y_test, proba_test)
         model_dir = model_dir or "models"
+        label_meta = {
+            k: dataset["meta"].get(k)
+            for k in ("observed_labels", "simulated_labels", "label_agreement")
+        }
         path = save_model(model, scaler, dataset["features"],
                           {"algorithm": algorithm, "version": version, "metrics": metrics, "seed": seed,
-                           "target_note": dataset["meta"].get("target_note"), "n_features": X.shape[1]},
+                           "target_note": dataset["meta"].get("target_note"), "n_features": X.shape[1],
+                           "label_drift": label_meta},
                           model_dir=model_dir, task=task)
 
         _record_model(db, task, version, path, metrics, algorithm)

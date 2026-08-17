@@ -20,7 +20,7 @@ services:
     image: redis:7-alpine
     container_name: beru-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -79,6 +79,8 @@ services:
         condition: service_started
       qdrant:
         condition: service_started
+    volumes:
+      - ./data:/data:ro
 
   worker:
     build: ./backend
@@ -95,6 +97,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./data:/data:ro
 
   frontend:
     build: ./frontend

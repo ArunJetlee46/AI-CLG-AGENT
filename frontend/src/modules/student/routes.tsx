@@ -2,6 +2,7 @@ import { type ModuleRoute } from "@/core/lib/routes";
 
 import { AssignmentAssistant } from "./AssignmentAssistant";
 import { Community } from "./Community";
+import { DegreeAudit } from "./DegreeAudit";
 import { ExamPrep } from "./ExamPrep";
 import { Insights } from "./Insights";
 import { MockInterview } from "./MockInterview";
@@ -26,4 +27,5 @@ export const moduleRoutes: ModuleRoute[] = [
   { path: "/student/mock-interview", element: <MockInterview />, roles: ["student"] },
   { path: "/student/resume-ats", element: <ResumeATS />, roles: ["student"] },
   { path: "/student/project-mentor", element: <ProjectMentor />, roles: ["student"] },
+  { path: "/student/degree-audit", element: <DegreeAudit />, roles: ["student"] },
 ];

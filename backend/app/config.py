@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -54,6 +55,9 @@ class Settings(BaseSettings):
     agent_llm_reasoning: bool = True  # LLM router/planner/reflect/debate; rules when the gateway is down
     agent_llm_reasoning_stages: str = "router,planner,reflect,critic"  # gate each reasoning stage
 
+    # Use the LLM gateway for intent routing / planning (fallback: keyword rules)
+    llm_router_enabled: bool = True
+
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     reranker_model: str = "bge-reranker-base"
     rag_top_k: int = 4
@@ -64,6 +68,8 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = "http://localhost:5000"
     prediction_model_path: str = "models/risk_model.joblib"
 
+    # Data directory - can be overridden via env var; defaults to ../data for local dev, /app/data for Docker
+    data_dir: str = "../data"
     knowledge_data_dir: str = "../data"
     knowledge_source_label: str = "Anna University AI&DS Regulations 2021"
 

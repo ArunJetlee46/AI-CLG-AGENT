@@ -32,3 +32,16 @@ def _prepare_db():
     finally:
         db.close()
     yield
+
+
+@pytest.fixture(autouse=True)
+def _clear_dataset_cache():
+    """The ML dataset cache is a module-global with a 300s TTL - longer than the
+    full suite takes to run. Without clearing it per-test, whichever module
+    populates it first bleeds stale snapshots (from a different DB state) into
+    every later test. This keeps dataset-based tests order-independent."""
+    from app.ml.datasets import invalidate_dataset_cache
+
+    invalidate_dataset_cache()
+    yield
+    invalidate_dataset_cache()

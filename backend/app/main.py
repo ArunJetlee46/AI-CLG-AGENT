@@ -13,12 +13,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import (
     admin_module,
+    agent_plugins,
     agents,
     approvals,
     audit,
     auth,
+    degree_audit,
     faculty,
     health,
+    interventions,
     notifications,
     placement,
     predictions,
@@ -362,6 +365,9 @@ app.include_router(students.router, prefix="/api/v1")
 app.include_router(faculty.router, prefix="/api/v1")
 app.include_router(placement.router, prefix="/api/v1")
 app.include_router(admin_module.router, prefix="/api/v1")
+app.include_router(interventions.router, prefix="/api/v1")
+app.include_router(degree_audit.router, prefix="/api/v1")
+app.include_router(agent_plugins.router, prefix="/api/v1")
 app.include_router(synthetic.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 

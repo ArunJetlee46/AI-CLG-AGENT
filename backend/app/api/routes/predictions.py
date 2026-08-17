@@ -7,6 +7,7 @@ from app.db import get_db
 from app.ml.predict import predict_all, predict_risk
 from app.models.entities import ModelRecord, Prediction
 from app.schemas.admin import PredictionOut
+from app.services.label_drift import compute_label_drift
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
@@ -42,4 +43,10 @@ def live_predictions(db: Session = Depends(get_db), _=Depends(require_role("admi
 def all_predictions(limit: int = 25, db: Session = Depends(get_db), _=Depends(require_role("admin", "lecturer", "placement"))) -> list[dict]:
     """All four Phase-9 tasks scored (performance, placement, attendance, dropout)."""
     return predict_all(db, limit=limit)
+
+
+@router.get("/label-drift")
+def label_drift(db: Session = Depends(get_db), _=Depends(require_role("admin", "lecturer", "placement"))) -> dict:
+    """Label provenance + drift report: observed vs simulated ground truth per task."""
+    return compute_label_drift(db)
 

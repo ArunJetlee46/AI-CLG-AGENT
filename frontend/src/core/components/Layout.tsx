@@ -17,6 +17,7 @@
   LogOut,
   Menu,
   Presentation,
+  Puzzle,
   Rocket,
   ScrollText,
   Search,
@@ -54,6 +55,8 @@ import { authApi } from "@/core/lib/api";
 import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
 import { NotificationBell } from "@/core/components/NotificationBell";
+import { PWAUpdateNotification } from "@/core/components/PWAUpdateNotification";
+import { DarkModeToggle } from "@/core/components/DarkModeToggle";
 
 const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: typeof Bot; roles?: string[] }[] }[] = [
   {
@@ -114,6 +117,7 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/faculty/tools/code-review", label: "Code Review", icon: Code2, roles: ["lecturer"] },
       { to: "/faculty/tools/lab-assistant", label: "Lab Assistant", icon: FlaskConical, roles: ["lecturer"] },
       { to: "/faculty/tools/viva-questions", label: "Viva Questions", icon: TestTube2, roles: ["lecturer"] },
+      { to: "/faculty/intervention-effectiveness", label: "Intervention Effectiveness", icon: TrendingUp, roles: ["lecturer", "admin"] },
     ],
   },
   {
@@ -146,6 +150,7 @@ const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: t
       { to: "/admin/digital-twin", label: "Digital Twin", icon: Waves, roles: ["admin"] },
       { to: "/admin/timetable", label: "Timetable Optimizer", icon: CalendarClock, roles: ["admin"] },
       { to: "/admin/evaluation", label: "Evaluation Center", icon: ClipboardCheck, roles: ["admin"] },
+      { to: "/admin/agent-plugins", label: "Agent Plugins", icon: Puzzle, roles: ["admin"] },
     ],
   },
 ];
@@ -449,6 +454,7 @@ export function Layout() {
           <p className="truncate text-sm font-bold">Beru Campus AI</p>
           <span className="ml-auto inline-flex lg:hidden">
             <NotificationBell />
+            <DarkModeToggle />
           </span>
           <button
             type="button"
@@ -484,6 +490,7 @@ export function Layout() {
               </nav>
               <span className="hidden shrink-0 lg:inline-flex">
                 <NotificationBell />
+                <DarkModeToggle />
               </span>
             </div>
           )}
@@ -494,6 +501,7 @@ export function Layout() {
           </div>
         </main>
       </div>
+      <PWAUpdateNotification />
     </div>
   );
 }

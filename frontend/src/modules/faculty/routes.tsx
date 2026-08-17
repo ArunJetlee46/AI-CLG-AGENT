@@ -13,6 +13,7 @@ import { FacultyPlacements } from "./FacultyPlacements";
 import { FacultySchedule } from "./FacultySchedule";
 import { FacultyStudyAssist } from "./FacultyStudyAssist";
 import { FacultyTools } from "./FacultyTools";
+import { InterventionEffectiveness } from "./InterventionEffectiveness";
 import { LabAssistant } from "./LabAssistant";
 import { LessonPlan } from "./LessonPlan";
 import { QuestionPaper } from "./QuestionPaper";
@@ -42,4 +43,5 @@ export const moduleRoutes: ModuleRoute[] = [
   { path: "/faculty/tools/code-review", element: <CodeReview />, roles: ["lecturer", "admin"] },
   { path: "/faculty/tools/lab-assistant", element: <LabAssistant />, roles: ["lecturer", "admin"] },
   { path: "/faculty/tools/viva-questions", element: <VivaQuestions />, roles: ["lecturer", "admin"] },
+  { path: "/faculty/intervention-effectiveness", element: <InterventionEffectiveness />, roles: ["lecturer", "admin"] },
 ];

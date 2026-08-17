@@ -158,6 +158,23 @@ class InterventionPlan(Base):
     notified_lecturer_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
 
+class InterventionEffectiveness(Base):
+    __tablename__ = "intervention_effectiveness"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    intervention_id: Mapped[str] = mapped_column(ForeignKey("intervention_plans.id"), index=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), index=True)
+    course_code: Mapped[str] = mapped_column(String(16), index=True)
+    intervention_type: Mapped[str] = mapped_column(String(32))
+    baseline_score: Mapped[float] = mapped_column(Float, default=0.0)
+    followup_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    improvement: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+
 class ApprovalRequest(Base):
     __tablename__ = "approval_requests"
 
