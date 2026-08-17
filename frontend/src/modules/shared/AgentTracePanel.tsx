@@ -362,7 +362,7 @@ export function AgentTracePanel() {
                                     {Object.entries(step.metadata).map(([key, value]) => (
                                       <div key={key} className="flex gap-2">
                                         <span className="text-[var(--muted-foreground)] font-mono">{key}:</span>
-                                        <span className="font-mono text-green-600 dark:text-green-400">
+                                        <span className="font-mono text-green-600">
                                           {typeof value === "object" ? JSON.stringify(value) : String(value)}
                                         </span>
                                       </div>

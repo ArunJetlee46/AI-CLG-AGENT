@@ -56,7 +56,7 @@ import { cn } from "@/core/lib/utils";
 import { useAuthStore } from "@/core/stores/auth";
 import { NotificationBell } from "@/core/components/NotificationBell";
 import { PWAUpdateNotification } from "@/core/components/PWAUpdateNotification";
-import { DarkModeToggle } from "@/core/components/DarkModeToggle";
+
 
 const NAV_SECTIONS: { title: string; items: { to: string; label: string; icon: typeof Bot; roles?: string[] }[] }[] = [
   {
@@ -467,7 +467,6 @@ export function Layout() {
           <p className="truncate text-sm font-bold">Beru Campus AI</p>
           <span className="ml-auto inline-flex lg:hidden">
             <NotificationBell />
-            <DarkModeToggle />
           </span>
           <button
             type="button"
@@ -503,7 +502,6 @@ export function Layout() {
               </nav>
               <span className="hidden shrink-0 lg:inline-flex">
                 <NotificationBell />
-                <DarkModeToggle />
               </span>
             </div>
           )}
