@@ -2,6 +2,7 @@
 
 import { Announcements } from "@/modules/common/Announcements";
 import { Companies } from "./Companies";
+import { CsvImport } from "./CsvImport";
 import { Drives } from "./Drives";
 import { GapAnalysis } from "./GapAnalysis";
 import { JDAnalyzer } from "./JDAnalyzer";
@@ -20,6 +21,7 @@ export const moduleRoutes: ModuleRoute[] = [
   { path: "/placement/jd", element: <JDAnalyzer />, roles: ["placement", "admin"] },
   { path: "/placement/matching", element: <Matching />, roles: ["placement", "admin"] },
   { path: "/placement/drives", element: <Drives />, roles: ["placement", "admin"] },
+  { path: "/placement/import", element: <CsvImport />, roles: ["placement", "admin"] },
   { path: "/placement/analytics", element: <PlacementAnalytics />, roles: ["placement", "admin"] },
   { path: "/placement/gaps", element: <GapAnalysis />, roles: ["placement", "admin"] },
   { path: "/placement/companies", element: <Companies />, roles: ["placement", "admin"] },

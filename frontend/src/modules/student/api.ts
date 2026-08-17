@@ -308,6 +308,7 @@ export interface DriveInfo {
   id: string | null;
   title: string | null;
   company: string | null;
+  company_id?: string;
   drive_date: string | null;
   mode: string | null;
   location: string | null;
@@ -324,12 +325,46 @@ export interface ShortlistNotification {
   drive: DriveInfo;
 }
 
+export interface OpenDrive extends DriveInfo {
+  applied: boolean;
+  notified: boolean;
+}
+
+export interface PlacementApplication {
+  id: string;
+  drive_id: string;
+  status: string;
+  applied_at: string | null;
+  drive: DriveInfo;
+}
+
+export interface PlacementOffer {
+  id: string;
+  drive_id: string;
+  round_reached: string;
+  offered_ctc: number;
+  offer_status: string;
+  decided_at: string | null;
+  created_at: string | null;
+  drive: DriveInfo;
+}
+
+export interface ResumeInfo {
+  id: string;
+  filename: string;
+  skills: string[];
+  uploaded_at: string | null;
+}
+
 export interface MyPlacements {
   student_id: string;
   method: string;
   readiness: PlacementReadiness | null;
   shortlists: ShortlistNotification[];
-  upcoming_drives: DriveInfo[];
+  open_drives: OpenDrive[];
+  applications: PlacementApplication[];
+  offers: PlacementOffer[];
+  resume: ResumeInfo | null;
   note: string;
 }
 
@@ -382,6 +417,36 @@ export const studentApi = {
     api<ProjectMentor>("/students/me/project-mentor", { method: "POST", body: JSON.stringify(body) }, token),
   myTimetable: (token: string) => api<MyTimetable>("/students/me/timetable", {}, token),
   myPlacements: (token: string) => api<MyPlacements>("/students/me/placements", {}, token),
+  applyToDrive: (driveId: string, token: string) =>
+    api<{ id: string; status: string; message: string }>(
+      "/students/me/applications",
+      { method: "POST", body: JSON.stringify({ drive_id: driveId }) },
+      token
+    ),
+  withdrawApplication: (driveId: string, token: string) =>
+    api<{ id: string; status: string; message: string }>(
+      `/students/me/applications/${driveId}`,
+      { method: "DELETE" },
+      token
+    ),
+  decideOffer: (selectionId: string, decision: "accepted" | "rejected", token: string) =>
+    api<{ id: string; offer_status: string; message: string }>(
+      `/students/me/selections/${selectionId}/decide`,
+      { method: "POST", body: JSON.stringify({ decision }) },
+      token
+    ),
+  uploadResume: (file: File, token: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api<ResumeInfo & { message: string }>(
+      "/students/me/resume",
+      { method: "POST", body: form },
+      token
+    );
+  },
+  getResume: (token: string) => api<ResumeInfo | { message: string }>("/students/me/resume", {}, token),
+  deleteResume: (token: string) =>
+    api<{ message: string }>("/students/me/resume", { method: "DELETE" }, token),
   askStudyAssistant: (token: string, question: string) =>
     api<StudyAnswer>("/students/me/ask", { method: "POST", body: JSON.stringify({ question }) }, token),
 };

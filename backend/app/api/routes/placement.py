@@ -1,5 +1,10 @@
 """Placement Copilot API."""
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import csv
+import io
+import tempfile
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -276,3 +281,231 @@ def notification_read(notification_id: str, user: User = Depends(require_role("p
 def full_report(user: User = Depends(require_role("placement", "lecturer", "admin")), db: Session = Depends(get_db)) -> dict:
     _officer(user)
     return placement_intelligence.get_reports(db)
+
+
+@router.post("/import/preview")
+async def import_preview(
+    import_type: str = Query(..., pattern=r"^(companies|jds|drives|selections)$"),
+    file: UploadFile = File(...),
+    user: User = Depends(require_role("placement", "admin")),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Preview first 10 rows of a CSV import with validation."""
+    _officer(user)
+    if not file.filename or not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Upload a CSV file")
+
+    content = await file.read()
+    text = content.decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+    rows = []
+    errors = []
+    for i, row in enumerate(reader):
+        if i >= 500:
+            break
+        row_errors = _validate_csv_row(import_type, row)
+        if row_errors:
+            errors.append({"row": i + 2, "errors": row_errors})
+        if i < 10:
+            rows.append(row)
+
+    return {
+        "import_type": import_type,
+        "filename": file.filename,
+        "total_rows": min(i + 1, 500) if i < 500 else "500+",
+        "preview": rows,
+        "validation_errors": errors[:20],
+        "error_count": len(errors),
+        "can_import": len(errors) == 0,
+    }
+
+
+@router.post("/import/confirm")
+async def import_confirm(
+    import_type: str = Query(..., pattern=r"^(companies|jds|drives|selections)$"),
+    file: UploadFile = File(...),
+    user: User = Depends(require_role("placement", "admin")),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Execute a CSV import after preview validation."""
+    _officer(user)
+    if not file.filename or not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Upload a CSV file")
+
+    content = await file.read()
+    text = content.decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+
+    imported = 0
+    skipped = 0
+    for i, row in enumerate(reader):
+        try:
+            _import_csv_row(db, import_type, row, user.username)
+            imported += 1
+        except (ValueError, KeyError):
+            skipped += 1
+
+    db.commit()
+    return {
+        "import_type": import_type,
+        "imported": imported,
+        "skipped": skipped,
+        "message": f"Imported {imported} rows, skipped {skipped}.",
+    }
+
+
+def _validate_csv_row(import_type: str, row: dict) -> list[str]:
+    """Validate a single CSV row. Returns list of error messages."""
+    errors = []
+    if import_type == "companies":
+        if not row.get("name", "").strip():
+            errors.append("name is required")
+    elif import_type == "jds":
+        if not row.get("company_name", "").strip() and not row.get("company_id", "").strip():
+            errors.append("company_name or company_id is required")
+        if not row.get("title", "").strip():
+            errors.append("title is required")
+    elif import_type == "drives":
+        if not row.get("title", "").strip():
+            errors.append("title is required")
+        if not row.get("company_name", "").strip() and not row.get("company_id", "").strip():
+            errors.append("company_name or company_id is required")
+        if not row.get("drive_date", "").strip():
+            errors.append("drive_date is required")
+    elif import_type == "selections":
+        if not row.get("student_id", "").strip():
+            errors.append("student_id is required")
+        if not row.get("company_name", "").strip() and not row.get("drive_id", "").strip():
+            errors.append("company_name or drive_id is required")
+    return errors
+
+
+def _import_csv_row(db: Session, import_type: str, row: dict, actor: str) -> None:
+    """Import a single CSV row into the database."""
+    from app.models.entities import Company, JobDescription, PlacementDrive, PlacementSelection, Student
+
+    if import_type == "companies":
+        name = row["name"].strip()
+        existing = db.execute(select(Company).where(Company.name == name)).scalar_one_or_none()
+        if existing:
+            raise ValueError(f"Company {name} already exists")
+        company = Company(
+            name=name,
+            sector=row.get("sector", "").strip(),
+            location=row.get("location", "").strip(),
+            contact_email=row.get("contact_email", "").strip(),
+            contact_phone=row.get("contact_phone", "").strip(),
+            notes=row.get("notes", "").strip(),
+        )
+        db.add(company)
+        db.flush()
+
+    elif import_type == "jds":
+        company_name = row.get("company_name", "").strip()
+        company = None
+        if company_name:
+            company = db.execute(select(Company).where(Company.name == company_name)).scalar_one_or_none()
+        if company is None:
+            company_id = row.get("company_id", "").strip()
+            if company_id:
+                company = db.execute(select(Company).where(Company.id == company_id)).scalar_one_or_none()
+        if company is None:
+            raise ValueError(f"Company not found: {company_name or row.get('company_id', '')}")
+
+        def _parse_float(val, default=0.0):
+            try:
+                return float(str(val).strip().split()[0]) if val and str(val).strip() else default
+            except (ValueError, IndexError):
+                return default
+
+        jd = JobDescription(
+            company_id=company.id,
+            title=row["title"].strip(),
+            raw_text=row.get("raw_text", ""),
+            skills=[s.strip() for s in row.get("skills", "").split(",") if s.strip()],
+            role_type=row.get("role_type", "software").strip(),
+            min_gpa=_parse_float(row.get("min_gpa"), 2.5),
+            max_backlogs=int(_parse_float(row.get("max_backlogs"), 0)),
+            ctc_min=_parse_float(row.get("ctc_min")),
+            ctc_max=_parse_float(row.get("ctc_max")),
+            openings=int(_parse_float(row.get("openings"), 1)),
+            location=row.get("location", "").strip(),
+            mode=row.get("mode", "onsite").strip(),
+        )
+        db.add(jd)
+        db.flush()
+
+    elif import_type == "drives":
+        company_name = row.get("company_name", "").strip()
+        company = None
+        if company_name:
+            company = db.execute(select(Company).where(Company.name == company_name)).scalar_one_or_none()
+        if company is None:
+            company_id = row.get("company_id", "").strip()
+            if company_id:
+                company = db.execute(select(Company).where(Company.id == company_id)).scalar_one_or_none()
+        if company is None:
+            raise ValueError(f"Company not found: {company_name or row.get('company_id', '')}")
+
+        from datetime import date as _date
+        try:
+            drive_date = _date.fromisoformat(row["drive_date"].strip())
+        except (ValueError, KeyError):
+            raise ValueError(f"Invalid drive_date: {row.get('drive_date', '')}")
+
+        jd_id = None
+        jd_title = row.get("jd_title", "").strip()
+        if jd_title:
+            jd = db.execute(
+                select(JobDescription).where(JobDescription.title == jd_title, JobDescription.company_id == company.id)
+            ).scalar_one_or_none()
+            if jd:
+                jd_id = jd.id
+
+        drive = PlacementDrive(
+            title=row["title"].strip(),
+            company_id=company.id,
+            jd_id=jd_id,
+            drive_date=drive_date,
+            mode=row.get("mode", "online").strip(),
+            location=row.get("location", "").strip(),
+            status=row.get("status", "scheduled").strip(),
+        )
+        db.add(drive)
+        db.flush()
+
+    elif import_type == "selections":
+        student_id = row["student_id"].strip()
+        student = db.execute(select(Student).where(Student.student_id == student_id)).scalar_one_or_none()
+        if student is None:
+            raise ValueError(f"Student not found: {student_id}")
+
+        drive_id = row.get("drive_id", "").strip()
+        if not drive_id:
+            company_name = row.get("company_name", "").strip()
+            if company_name:
+                company = db.execute(select(Company).where(Company.name == company_name)).scalar_one_or_none()
+                if company:
+                    drives = db.execute(
+                        select(PlacementDrive).where(PlacementDrive.company_id == company.id).order_by(PlacementDrive.drive_date.desc())
+                    ).scalars().all()
+                    if drives:
+                        drive_id = drives[0].id
+        if not drive_id:
+            raise ValueError(f"Drive not found for student {student_id}")
+
+        def _parse_float2(val, default=0.0):
+            try:
+                return float(str(val).strip().split()[0]) if val and str(val).strip() else default
+            except (ValueError, IndexError):
+                return default
+
+        sel = PlacementSelection(
+            drive_id=drive_id,
+            student_id=student.id,
+            round_reached=row.get("round_reached", "final").strip(),
+            offered_ctc=_parse_float2(row.get("offered_ctc")),
+            offer_status=row.get("offer_status", "offered").strip(),
+        )
+        db.add(sel)
+        db.flush()

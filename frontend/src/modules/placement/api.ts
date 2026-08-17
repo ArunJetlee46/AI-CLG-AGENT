@@ -328,6 +328,23 @@ export interface FullReport {
   summary: string;
 }
 
+export interface CsvPreviewResult {
+  import_type: string;
+  filename: string;
+  total_rows: number | string;
+  preview: Record<string, string>[];
+  validation_errors: { row: number; errors: string[] }[];
+  error_count: number;
+  can_import: boolean;
+}
+
+export interface CsvImportResult {
+  import_type: string;
+  imported: number;
+  skipped: number;
+  message: string;
+}
+
 export const placementApi = {
   overview: (token: string) => api<PlacementOverview>("/placement/overview", {}, token),
   readiness: (token: string, limit = 100) => api<PlacementReady[]>(`/placement/readiness?limit=${limit}`, {}, token),
@@ -382,4 +399,24 @@ export const placementApi = {
   markNotificationRead: (id: string, token: string) =>
     api<{ id: string; status: string }>(`/placement/notifications/${id}/read`, { method: "POST" }, token),
   fullReport: (token: string) => api<FullReport>("/placement/report/full", {}, token),
+  importPreview: (importType: string, file: File, token: string) => {
+    const params = new URLSearchParams({ import_type: importType });
+    const form = new FormData();
+    form.append("file", file);
+    return api<CsvPreviewResult>(
+      `/placement/import/preview?${params}`,
+      { method: "POST", body: form },
+      token
+    );
+  },
+  importConfirm: (importType: string, file: File, token: string) => {
+    const params = new URLSearchParams({ import_type: importType });
+    const form = new FormData();
+    form.append("file", file);
+    return api<CsvImportResult>(
+      `/placement/import/confirm?${params}`,
+      { method: "POST", body: form },
+      token
+    );
+  },
 };

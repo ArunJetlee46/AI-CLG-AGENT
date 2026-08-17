@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 
 from app.api.deps import require_role
 from app.db import get_db
@@ -10,8 +10,11 @@ from app.schemas.faculty import (
     ProjectMentorRequest,
     ResumeRequest,
 )
+from app.schemas.placement import ApplicationRequest, DecideRequest
 from app.schemas.students import AdviseRequest, AskRequest
 from app.services import student_assistant, student_growth, student_placements, student_tools, students
+from app.services.students import applications as app_service
+from app.services.students import resume as resume_service
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/students", tags=["students"])
@@ -156,7 +159,83 @@ def my_timetable(user: User = Depends(require_role("student")), db: Session = De
 
 @router.get("/me/placements")
 def my_placements(user: User = Depends(require_role("student")), db: Session = Depends(get_db)) -> dict:
-    return student_placements.get_placements(db, _current_student(db, user))
+    return app_service.get_placements(db, _current_student(db, user))
+
+
+@router.post("/me/applications")
+def my_apply(
+    body: ApplicationRequest,
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return app_service.apply_to_drive(db, _current_student(db, user), body.drive_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete("/me/applications/{drive_id}")
+def my_withdraw(
+    drive_id: str,
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return app_service.withdraw_application(db, _current_student(db, user), drive_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/me/selections/{selection_id}/decide")
+def my_decide_offer(
+    selection_id: str,
+    body: DecideRequest,
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return app_service.decide_offer(db, _current_student(db, user), selection_id, body.decision)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/me/resume")
+async def my_upload_resume(
+    file: UploadFile = File(...),
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    allowed = {".pdf", ".docx", ".doc", ".txt"}
+    ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"File type {ext} not supported. Upload PDF, DOCX, or TXT.")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum 5MB.")
+    try:
+        return resume_service.upload_resume(db, _current_student(db, user), content, file.filename)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/me/resume")
+def my_get_resume(
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    result = resume_service.get_resume(db, _current_student(db, user))
+    return result or {"message": "No resume uploaded"}
+
+
+@router.delete("/me/resume")
+def my_delete_resume(
+    user: User = Depends(require_role("student")),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        return resume_service.delete_resume(db, _current_student(db, user))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/me/ask")

@@ -62,3 +62,15 @@ class SelectionCreate(BaseModel):
 class NotifyRequest(BaseModel):
     drive_id: str = Field(min_length=1)
     student_ids: list[str] = Field(default_factory=list, max_length=500)
+
+
+class DecideRequest(BaseModel):
+    decision: str = Field(pattern=r"^(accepted|rejected)$")
+
+
+class ApplicationRequest(BaseModel):
+    drive_id: str = Field(min_length=1)
+
+
+class CsvImportType(BaseModel):
+    import_type: str = Field(pattern=r"^(companies|jds|drives|selections)$")

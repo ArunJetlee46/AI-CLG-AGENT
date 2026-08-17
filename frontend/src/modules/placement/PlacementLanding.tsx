@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   FileSearch,
+  FileSpreadsheet,
   FileText,
   ListChecks,
   Megaphone,
@@ -29,6 +30,7 @@ const TOOLS = [
   { to: "/placement/analytics", label: "Placement Analytics", blurb: "Funnel, salary, skill demand, departments and prediction.", icon: BarChart3, accent: "text-slate-600 bg-slate-100" },
   { to: "/placement/gaps", label: "Gaps & Training", blurb: "Employability gaps and personalized training plans.", icon: Target, accent: "text-teal-600 bg-teal-100" },
   { to: "/placement/companies", label: "Company CRM", blurb: "Partner companies, their drives and selections.", icon: Building2, accent: "text-cyan-600 bg-cyan-100" },
+  { to: "/placement/import", label: "CSV Import", blurb: "Bulk import companies, JDs, drives and selections from CSV.", icon: FileSpreadsheet, accent: "text-orange-600 bg-orange-100" },
   { to: "/placement/notifications", label: "Notifications", blurb: "Students shortlisted and notified for drives.", icon: Megaphone, accent: "text-pink-600 bg-pink-100" },
   { to: "/placement/reports", label: "Automated Reports", blurb: "One-click cohort placement report.", icon: FileText, accent: "text-rose-600 bg-rose-100" },
 ] as const;

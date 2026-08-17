@@ -283,6 +283,7 @@ class PlacementDrive(Base):
     jd: Mapped[JobDescription | None] = relationship(back_populates="drives")
     rounds: Mapped[list["RecruitmentRound"]] = relationship(back_populates="drive", order_by="RecruitmentRound.round_order")
     selections: Mapped[list["PlacementSelection"]] = relationship(back_populates="drive")
+    applications: Mapped[list["PlacementApplication"]] = relationship()
 
 
 class RecruitmentRound(Base):
@@ -324,6 +325,31 @@ class PlacementNotification(Base):
     body: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(16), default="sent")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PlacementApplication(Base):
+    __tablename__ = "placement_applications"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), index=True)
+    drive_id: Mapped[str] = mapped_column(ForeignKey("placement_drives.id"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="applied")  # applied/withdrawn/shortlisted/rejected
+    applied_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    drive: Mapped[PlacementDrive] = relationship()
+
+
+class StudentResume(Base):
+    __tablename__ = "student_resumes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id"), unique=True, index=True)
+    file_path: Mapped[str] = mapped_column(String(512))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    parsed_text: Mapped[str] = mapped_column(Text, default="")
+    skills: Mapped[list] = mapped_column(JSON, default=list)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Announcement(Base):

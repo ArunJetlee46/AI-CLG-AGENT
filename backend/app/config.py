@@ -90,6 +90,16 @@ class Settings(BaseSettings):
     demo_student_id: str = "STU00000"
     demo_lecturer_id: str = "LEC0000"
 
+    email_enabled: bool = False
+    email_host: str = "smtp.gmail.com"
+    email_port: int = 587
+    email_user: str = ""
+    email_password: str = ""
+    email_from: str = "noreply@beru.campus.ai"
+
+    resume_upload_dir: str = "uploads/resumes"
+    max_resume_size_mb: int = 5
+
     sentry_dsn: str = ""
 
     @property
