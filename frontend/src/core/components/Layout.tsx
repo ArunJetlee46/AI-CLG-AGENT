@@ -307,8 +307,20 @@ export function Layout() {
 
   const closeDrawer = () => setMobileOpen(false);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeDrawer(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
   return (
     <div className="app-bg flex min-h-screen" data-role={role ?? "admin"}>
+      {/* Skip navigation */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[var(--primary)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2">
+        Skip to main content
+      </a>
+
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden" onClick={closeDrawer} aria-hidden />
@@ -316,7 +328,7 @@ export function Layout() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[var(--border)] bg-white/90 backdrop-blur transition-[width,transform] duration-300",
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[var(--border)] bg-[var(--card)]/90 backdrop-blur transition-[width,transform] duration-300",
           "lg:sticky lg:top-0 lg:h-screen",
           collapsed ? "lg:w-[76px]" : "lg:w-64",
           mobileOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:translate-x-0"
@@ -342,12 +354,13 @@ export function Layout() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search pages…  (Ctrl K)"
-              className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--muted)]/50 pl-9 pr-3 text-sm placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)]/40 focus:bg-white focus:outline-none"
+              aria-label="Search pages"
+              className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--muted)]/50 pl-9 pr-3 text-sm placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)]/40 focus:bg-[var(--card)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-1"
             />
           </div>
         )}
 
-        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 pb-3">
+        <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 pb-3">
           {filteredSections.map((section) => (
             <div key={section.title} className="flex flex-col gap-1">
               {!collapsed && (
@@ -439,7 +452,7 @@ export function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-white/80 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--card)]/80 px-4 py-3 backdrop-blur lg:hidden">
           <button
             type="button"
             aria-label="Open navigation"
@@ -469,7 +482,7 @@ export function Layout() {
           </button>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8 lg:px-10 lg:py-8">
+        <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8 lg:px-10 lg:py-8">
           {/* Breadcrumbs */}
           {crumbs.length > 0 && (
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -477,7 +490,7 @@ export function Layout() {
                 <span className="font-medium text-[var(--foreground)]">Beru Campus AI</span>
                 {crumbs.map((c, i) => (
                   <span key={c.to} className="flex items-center gap-1.5">
-                    <span className="opacity-40">/</span>
+                    <span className="opacity-40" aria-hidden="true">/</span>
                     {i === crumbs.length - 1 ? (
                       <span className="font-medium capitalize text-[var(--muted-foreground)]">{c.label}</span>
                     ) : (
