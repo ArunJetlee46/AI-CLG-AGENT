@@ -22,7 +22,6 @@ import {
 import { Button } from "@/core/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { Input } from "@/core/components/ui/input";
-import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { studentApi, type AdviseResponse, type TodayPlan } from "@/modules/student/api";
 import { cn } from "@/core/lib/utils";
@@ -37,6 +36,13 @@ const severityBg = (severity: string) =>
     : severity === "medium"
       ? "border-l-amber-500 bg-amber-50"
       : "border-l-green-500 bg-green-50";
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 export function StudentDashboard() {
   const token = useAuthStore((s) => s.token);
@@ -77,21 +83,45 @@ export function StudentDashboard() {
 
   const plan = today?.plan ?? [];
 
+  const riskTone = score.data?.risk_level === "high" ? "destructive" : score.data?.risk_level === "medium" ? "warning" : "success";
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Student Copilot"
-        subtitle={`Welcome back, ${username}. Here is your academic picture at a glance.`}
-        icon={GraduationCap}
-        accent="bg-sky-100 text-sky-600"
-        actions={
-          profile.data && (
-            <Badge tone="neutral" className="font-mono">
-              {profile.data.student_id} · {profile.data.program}
-            </Badge>
-          )
-        }
-      />
+      {/* Hero */}
+      <section className="fade-up relative overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-br from-sky-500/10 via-white/80 to-white p-6 backdrop-blur">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-500/5 blur-2xl" />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <Badge tone="primary" className="mb-2">STUDENT OVERVIEW</Badge>
+            <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">
+              {greeting()}, {username}
+            </h1>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+              {profile.data
+                ? `${profile.data.student_id} \u00b7 ${profile.data.program} \u00b7 Year ${profile.data.year}`
+                : "Your academic dashboard — powered by AI"}
+            </p>
+          </div>
+          {profile.data && (
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="neutral" className="font-mono">
+                GPA {profile.data.gpa ?? "\u2014"}
+              </Badge>
+              <Badge tone="neutral">
+                {Math.round(profile.data.overall_attendance * 100)}% attendance
+              </Badge>
+              {score.data && (
+                <Badge tone={riskTone}>
+                  {score.data.risk_level.toUpperCase()} RISK
+                </Badge>
+              )}
+              <Badge tone="neutral">
+                {profile.data.credits_earned} credits
+              </Badge>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
