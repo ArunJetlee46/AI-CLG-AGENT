@@ -56,7 +56,8 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)) -
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
+@limiter.limit(settings.login_rate_limit)
+def refresh(request: Request, body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
     try:
         payload = decode_token(body.refresh_token)
     except ValueError as exc:

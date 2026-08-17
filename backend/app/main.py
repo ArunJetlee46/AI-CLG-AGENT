@@ -372,13 +372,6 @@ app.include_router(synthetic.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 
 
-@app.middleware("http")
-async def count_requests(request, call_next):
-    response = await call_next(request)
-    REQUESTS.labels(method=request.method, path=request.url.path, status=response.status_code).inc()
-    return response
-
-
 @app.get("/metrics")
 def metrics() -> Response:
     registry = CollectorRegistry()

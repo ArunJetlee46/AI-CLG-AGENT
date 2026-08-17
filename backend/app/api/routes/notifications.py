@@ -72,7 +72,12 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        pass
     except Exception as e:
         logger.error(f"WebSocket error for user {user_id}: {e}")
+    finally:
         manager.disconnect(websocket)
+        try:
+            await websocket.close()
+        except Exception:
+            pass

@@ -21,8 +21,13 @@ async function request<T>(path: string, options: RequestInit, retried: boolean, 
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
-  const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  if (response.status === 401 && !retried && !path.startsWith("/auth/")) {
+  const controller = new AbortController();
+  const timeoutMs = (options as Record<string, unknown>).__timeoutMs as number | undefined ?? 30_000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${BASE_URL}${path}`, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (response.status === 401 && !retried && !path.startsWith("/auth/")) {
     const { refreshToken } = useAuthStore.getState();
     if (!refreshToken) {
       clearSession("Your session is no longer valid. Please sign in again.");
@@ -46,6 +51,13 @@ async function request<T>(path: string, options: RequestInit, retried: boolean, 
     throw new ApiError(response.status, detail);
   }
   return response.json() as Promise<T>;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(408, "Request timed out");
+    }
+    throw err;
+  }
 }
 
 export async function api<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
@@ -232,6 +244,7 @@ export interface HealthResponse {
   env: string;
   db: string;
   llm_providers: string[];
+  llm_reachable?: boolean;
 }
 
 export interface NotificationItem {

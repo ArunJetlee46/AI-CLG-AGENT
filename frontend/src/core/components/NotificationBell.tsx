@@ -91,7 +91,7 @@ export function NotificationBell() {
     qc.invalidateQueries({ queryKey: ["notifs"] });
   }, [qc]);
 
-  useWebSocket({
+  const { isReconnecting } = useWebSocket({
     onNotification: handleWsNotification,
     onConnect: () => qc.invalidateQueries({ queryKey: ["notifs"] }),
   });
@@ -120,6 +120,11 @@ export function NotificationBell() {
 
   return (
     <div ref={rootRef} className="relative">
+      {isReconnecting && (
+        <div className="absolute -bottom-6 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded bg-[var(--muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--muted-foreground)]">
+          Reconnecting…
+        </div>
+      )}
       <button
         type="button"
         aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
