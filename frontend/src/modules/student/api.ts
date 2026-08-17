@@ -275,6 +275,83 @@ export interface ProjectMentor {
   next_action: string;
 }
 
+export interface TimetableEntry {
+  day: string;
+  term: string;
+  start_time: string;
+  end_time: string;
+  course_code: string;
+  course_title: string;
+  credits: number;
+  room: string;
+  lecturer: string;
+}
+
+export interface MyTimetable {
+  student_id: string;
+  method: string;
+  days: string[];
+  entries: TimetableEntry[];
+  by_day: Record<string, TimetableEntry[]>;
+}
+
+export interface PlacementReadiness {
+  student_id: string;
+  readiness_score: number;
+  band: string;
+  components: { name: string; score: number; weight: number }[];
+  placement_probability: number | null;
+  drivers: string[];
+}
+
+export interface DriveInfo {
+  id: string | null;
+  title: string | null;
+  company: string | null;
+  drive_date: string | null;
+  mode: string | null;
+  location: string | null;
+  status: string | null;
+}
+
+export interface ShortlistNotification {
+  id: string;
+  drive_id: string | null;
+  title: string;
+  body: string;
+  status: string;
+  created_at: string | null;
+  drive: DriveInfo;
+}
+
+export interface MyPlacements {
+  student_id: string;
+  method: string;
+  readiness: PlacementReadiness | null;
+  shortlists: ShortlistNotification[];
+  upcoming_drives: DriveInfo[];
+  note: string;
+}
+
+export interface StudySource {
+  document: string;
+  page_start: number | null;
+  page_end: number | null;
+  course_code: string | null;
+  course_title: string | null;
+  regulation: string | null;
+  programme: string | null;
+  score: number;
+}
+
+export interface StudyAnswer {
+  student_id: string;
+  answer: string;
+  sources: StudySource[];
+  retrieved: unknown[];
+  grounded: boolean;
+}
+
 export const studentApi = {
   profile: (token: string) => api<StudentProfile>("/students/me", {}, token),
   successScore: (token: string) => api<SuccessScore>("/students/me/success-score", {}, token),
@@ -303,4 +380,8 @@ export const studentApi = {
     api<ResumeATS>("/students/me/resume-ats", { method: "POST", body: JSON.stringify({ resume_text: resumeText }) }, token),
   projectMentor: (token: string, body: { project_title: string; project_description: string; question: string }) =>
     api<ProjectMentor>("/students/me/project-mentor", { method: "POST", body: JSON.stringify(body) }, token),
+  myTimetable: (token: string) => api<MyTimetable>("/students/me/timetable", {}, token),
+  myPlacements: (token: string) => api<MyPlacements>("/students/me/placements", {}, token),
+  askStudyAssistant: (token: string, question: string) =>
+    api<StudyAnswer>("/students/me/ask", { method: "POST", body: JSON.stringify({ question }) }, token),
 };

@@ -76,7 +76,7 @@ def _candidates(db: Session, user: User) -> list[dict]:
                         "severity": "medium",
                         "title": n.title,
                         "body": n.body,
-                        "link": "/student/community",
+                        "link": "/student/placements",
                     }
                 )
 

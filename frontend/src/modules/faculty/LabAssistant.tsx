@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { facultyApi, type LabAssistant as LabResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { ProviderBadge } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 export function LabAssistant() {
   const token = useAuthStore((s) => s.token);
@@ -63,6 +64,7 @@ export function LabAssistant() {
               ))}
             </ol>
             <p className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-800">⚠ {result.safety_note}</p>
+            <ToolExportBar data={result} label="Lab Guidance" />
           </CardContent>
         </Card>
       )}

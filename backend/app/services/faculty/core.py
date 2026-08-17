@@ -520,3 +520,75 @@ def get_my_audit_log(db: Session, lecturer: Lecturer, user: User, limit: int = 5
             for e in entries
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Placement oversight: readiness + shortlists for the lecturer's students
+# ---------------------------------------------------------------------------
+
+
+def get_placement_overview(db: Session, lecturer: Lecturer) -> dict:
+    from app.services import placement
+
+    course_ids = _lecturer_course_ids(db, lecturer)
+    if not course_ids:
+        return {
+            "staff_id": lecturer.staff_id,
+            "method": "faculty-placement-v1",
+            "students": [],
+            "summary": {"total": 0, "ready": 0, "needs_improvement": 0, "not_ready": 0},
+        }
+
+    student_uuids = {
+        r[0]
+        for r in db.execute(
+            select(Enrollment.student_id).where(
+                Enrollment.course_id.in_(course_ids), Enrollment.status == "approved"
+            )
+        ).all()
+    }
+
+    student_ids_to_uuids: dict[str, str] = {}
+    for student in db.execute(select(Student)).scalars().all():
+        if str(student.id) in student_uuids:
+            student_ids_to_uuids[student.student_id] = str(student.id)
+
+    readiness = placement.get_readiness(db, student_id=None)
+    by_sid = {r["student_id"]: r for r in readiness}
+
+    students: list[dict] = []
+    bands = {"ready": 0, "needs_improvement": 0, "not_ready": 0}
+    for sid in student_ids_to_uuids:
+        r = by_sid.get(sid)
+        if r is None:
+            continue
+        band = r.get("band", "not_ready")
+        bands[band] = bands.get(band, 0) + 1
+        students.append({
+            "student_id": sid,
+            "readiness_score": r["readiness_score"],
+            "band": band,
+            "placement_probability": r.get("placement_probability"),
+            "drivers": r.get("drivers", []),
+        })
+    students.sort(key=lambda s: s["readiness_score"], reverse=True)
+
+    return {
+        "staff_id": lecturer.staff_id,
+        "method": "faculty-placement-v1",
+        "students": students,
+        "summary": {"total": len(students), **bands},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Faculty study assistant: curriculum-grounded Q&A
+# ---------------------------------------------------------------------------
+
+
+def ask_question(db: Session, lecturer: Lecturer, question: str) -> dict:
+    from app.services.rag.curriculum import get_curriculum_rag
+
+    result = get_curriculum_rag().answer(question)
+    result["staff_id"] = lecturer.staff_id
+    return result

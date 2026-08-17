@@ -5,6 +5,10 @@ class AdviseRequest(BaseModel):
     course_code: str = Field(min_length=1, max_length=16)
 
 
+class AskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+
+
 class InterventionRequest(BaseModel):
     student_id: str = Field(min_length=1, max_length=16)
     course_code: str = Field(min_length=1, max_length=16)

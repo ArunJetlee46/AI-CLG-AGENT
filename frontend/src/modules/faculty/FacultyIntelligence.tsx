@@ -15,6 +15,8 @@ import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card";
 import { StatCard } from "@/core/components/StatCard";
+import { StatCardSkeleton, Skeleton } from "@/core/components/ui/skeleton";
+import { ErrorState } from "@/core/components/ui/error-state";
 import { facultyApi } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 
@@ -64,10 +66,18 @@ export function FacultyIntelligence() {
 
       {tab === "twin" && (
         <div className="flex flex-col gap-4">
+          {twin.isLoading && (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+            </div>
+          )}
+          {twin.isError && <ErrorState onRetry={() => twin.refetch()} />}
+          {twin.data && (
+          <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Avg course health" value={twin.data?.health.avg_course_health ?? "…"} sub="/100" icon={GraduationCap} accent="bg-emerald-100 text-emerald-600" />
-            <StatCard label="At-risk students" value={twin.data?.health.at_risk_count ?? "…"} sub="high risk" icon={FileWarning} accent="bg-red-100 text-red-600" />
-            <StatCard label="High performers" value={twin.data?.health.high_performers ?? "…"} sub="top of class" icon={Trophy} accent="bg-amber-100 text-amber-600" />
+            <StatCard label="Avg course health" value={twin.data.health.avg_course_health ?? "…"} sub="/100" icon={GraduationCap} accent="bg-emerald-100 text-emerald-600" />
+            <StatCard label="At-risk students" value={twin.data.health.at_risk_count ?? "…"} sub="high risk" icon={FileWarning} accent="bg-red-100 text-red-600" />
+            <StatCard label="High performers" value={twin.data.health.high_performers ?? "…"} sub="top of class" icon={Trophy} accent="bg-amber-100 text-amber-600" />
             <StatCard label="Class attendance" value={twin.data ? `${Math.round(twin.data.health.attendance * 100)}%` : "…"} sub="average" icon={CalendarClock} accent="bg-sky-100 text-sky-600" />
           </div>
           <Card className="card-shell">
@@ -116,11 +126,15 @@ export function FacultyIntelligence() {
               </div>
             </CardContent>
           </Card>
+          </>
+          )}
         </div>
       )}
 
       {tab === "outcomes" && (
         <div className="flex flex-col gap-4">
+          {outcomes.isLoading && [1, 2].map((i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
+          {outcomes.isError && <ErrorState onRetry={() => outcomes.refetch()} />}
           {outcomes.data?.courses.map((c) => (
             <Card key={c.course_code} className="card-shell">
               <CardHeader>
@@ -166,6 +180,8 @@ export function FacultyIntelligence() {
             <CardTitle className="flex items-center gap-2 text-sm"><Trophy className="h-4 w-4" /> High performers</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
+            {performers.isLoading && [1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+            {performers.isError && <ErrorState onRetry={() => performers.refetch()} />}
             {performers.data?.map((p, i) => (
               <div key={p.student_id} className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] px-3 py-2">
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">{i + 1}</span>
@@ -186,6 +202,8 @@ export function FacultyIntelligence() {
             <CardTitle className="flex items-center gap-2 text-sm"><FlaskConical className="h-4 w-4" /> Research student recommendations</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
+            {research.isLoading && [1, 2].map((i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+            {research.isError && <ErrorState onRetry={() => research.refetch()} />}
             {research.data?.candidates.map((c) => (
               <div key={c.student_id} className="rounded-lg border border-[var(--border)] p-3">
                 <div className="flex items-center justify-between">
@@ -203,8 +221,16 @@ export function FacultyIntelligence() {
         </Card>
       )}
 
-      {tab === "schedule" && schedule.data && (
+      {tab === "schedule" && (
         <div className="flex flex-col gap-4">
+          {schedule.isLoading && (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+            </div>
+          )}
+          {schedule.isError && <ErrorState onRetry={() => schedule.refetch()} />}
+          {schedule.data && (
+          <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatCard label="Hours / week" value={schedule.data.total_hours} sub={`${schedule.data.sessions} sessions`} icon={CalendarClock} accent="bg-violet-100 text-violet-600" />
             <StatCard label="Capacity" value={schedule.data.max_hours} sub="weekly cap" icon={Award} accent="bg-sky-100 text-sky-600" />
@@ -232,6 +258,8 @@ export function FacultyIntelligence() {
             ))}
           </div>
           <p className="rounded-lg border-l-4 border-[var(--primary)] bg-[var(--primary)]/5 px-3 py-2 text-sm">{schedule.data.advisory}</p>
+          </>
+          )}
         </div>
       )}
 
@@ -241,6 +269,8 @@ export function FacultyIntelligence() {
             <CardTitle className="flex items-center gap-2 text-sm"><FileWarning className="h-4 w-4" /> Automated intervention recommendations</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
+            {interventions.isLoading && [1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+            {interventions.isError && <ErrorState onRetry={() => interventions.refetch()} />}
             {interventions.data?.map((r) => (
               <div key={`${r.student_id}-${r.course_code}`} className="rounded-lg border border-[var(--border)] p-3">
                 <div className="flex flex-wrap items-center gap-2">

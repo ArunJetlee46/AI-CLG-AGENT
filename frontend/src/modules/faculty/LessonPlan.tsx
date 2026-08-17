@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { facultyApi, type LessonPlan as LessonPlanResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { CourseChips, ProviderBadge } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 export function LessonPlan() {
   const token = useAuthStore((s) => s.token);
@@ -81,6 +82,7 @@ export function LessonPlan() {
                 <span key={m} className="rounded-full border border-[var(--border)] px-2.5 py-0.5 text-xs">{m}</span>
               ))}
             </div>
+            <ToolExportBar data={result} label={result.topic || "Lesson Plan"} />
           </CardContent>
         </Card>
       )}

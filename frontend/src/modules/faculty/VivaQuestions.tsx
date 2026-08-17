@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { facultyApi, type VivaQuestions as VivaResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { CourseChips, ProviderBadge } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 export function VivaQuestions() {
   const token = useAuthStore((s) => s.token);
@@ -68,6 +69,7 @@ export function VivaQuestions() {
                 </div>
               </div>
             ))}
+            <ToolExportBar data={result} label="Viva Questions" />
           </CardContent>
         </Card>
       )}

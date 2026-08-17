@@ -9,6 +9,7 @@ import { Select } from "@/core/components/ui/select";
 import { facultyApi, type TeachingMaterial as TeachingMaterialResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { CourseChips, ProviderBadge } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 export function TeachingMaterial() {
   const token = useAuthStore((s) => s.token);
@@ -71,6 +72,7 @@ export function TeachingMaterial() {
                 </ul>
               </div>
             ))}
+            <ToolExportBar data={result} label={result.topic || "Teaching Material"} />
           </CardContent>
         </Card>
       )}

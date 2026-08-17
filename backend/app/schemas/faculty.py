@@ -63,3 +63,7 @@ class CodeReviewRequest(BaseModel):
 
 class LabAssistantRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
+
+
+class FacultyAskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=500)

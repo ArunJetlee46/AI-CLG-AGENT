@@ -8,7 +8,8 @@ import { Input } from "@/core/components/ui/input";
 import { Select } from "@/core/components/ui/select";
 import { PageHeader } from "@/core/components/PageHeader";
 import { StatCard } from "@/core/components/StatCard";
-import { StatCardSkeleton } from "@/core/components/ui/skeleton";
+import { StatCardSkeleton, Skeleton } from "@/core/components/ui/skeleton";
+import { ErrorState } from "@/core/components/ui/error-state";
 import { toast } from "@/core/components/ui/toast";
 import { facultyApi, type AtRiskStudent, type CourseHealth, type InterventionProposal } from "@/modules/faculty/api";
 import { cn } from "@/core/lib/utils";
@@ -42,6 +43,7 @@ export function FacultyDashboard() {
   const [planText, setPlanText] = useState("");
   const [proposal, setProposal] = useState<InterventionProposal | null>(null);
   const [interventionBusy, setInterventionBusy] = useState(false);
+  const [atRiskLimit, setAtRiskLimit] = useState(10);
 
   const runCourseDetail = async (courseCode: string) => {
     if (!token || !courseCode) return;
@@ -65,8 +67,11 @@ export function FacultyDashboard() {
     setInterventionBusy(true);
     try {
       setProposal(await facultyApi.proposeIntervention(studentId.trim().toUpperCase(), selectedCourse, planText.trim(), token));
+      toast.success("Intervention proposed", "Your proposal has been submitted for approval.");
       setPlanText("");
       queryClient.invalidateQueries({ queryKey: ["faculty-interventions"] });
+    } catch (err) {
+      toast.error("Proposal failed", err instanceof Error ? err.message : "Could not submit proposal");
     } finally {
       setInterventionBusy(false);
     }
@@ -218,6 +223,14 @@ export function FacultyDashboard() {
           <CardTitle>AI Risk Monitor</CardTitle>
         </CardHeader>
         <CardContent>
+          {atRisk.isLoading && (
+            <div className="flex flex-col gap-2">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+            </div>
+          )}
+          {atRisk.isError && <ErrorState onRetry={() => atRisk.refetch()} />}
+          {atRisk.data && (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -230,7 +243,7 @@ export function FacultyDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {atRisk.data?.slice(0, 12).map((student: AtRiskStudent) => (
+                {atRisk.data.slice(0, atRiskLimit).map((student: AtRiskStudent) => (
                   <tr key={`${student.student_id}-${student.course_code}`} className="border-b border-[var(--border)]">
                     <td className="py-2 pr-4 font-medium">{student.student_id}</td>
                     <td className="py-2 pr-4">{student.course_code}</td>
@@ -243,7 +256,7 @@ export function FacultyDashboard() {
                     <td className="py-2 pr-4 text-xs text-[var(--muted-foreground)]">{student.reasons.join(", ")}</td>
                   </tr>
                 ))}
-                {atRisk.data?.length === 0 && (
+                {atRisk.data.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-3 text-sm text-[var(--muted-foreground)]">
                       No at-risk students across your courses.
@@ -253,8 +266,17 @@ export function FacultyDashboard() {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+          {atRisk.data.length > atRiskLimit && (
+            <div className="mt-3 text-center">
+              <Button variant="outline" size="sm" onClick={() => setAtRiskLimit((n) => n + 10)}>
+                Show more ({atRisk.data.length - atRiskLimit} remaining)
+              </Button>
+            </div>
+          )}
+          </>
+          )}
+          </CardContent>
+        </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>

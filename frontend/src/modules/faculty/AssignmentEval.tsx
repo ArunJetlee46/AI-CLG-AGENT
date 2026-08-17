@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/c
 import { facultyApi, type AssignmentEval as AssignmentEvalResult } from "@/modules/faculty/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { CourseChips, ProviderBadge } from "./toolShared";
+import { ToolExportBar } from "@/core/components/ui/tool-export-bar";
 
 const gradeTone = (g: string) => (g === "A" || g === "B" ? "success" : g === "C" ? "warning" : "destructive");
 
@@ -80,6 +81,7 @@ export function AssignmentEval() {
               ))}
             </div>
             <p className="rounded-lg border-l-4 border-[var(--primary)] bg-[var(--primary)]/5 px-3 py-2 text-sm">{result.overall}</p>
+            <ToolExportBar data={result} label="Assignment Evaluation" />
           </CardContent>
         </Card>
       )}
