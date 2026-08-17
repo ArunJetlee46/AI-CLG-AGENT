@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Award,
   BookOpen,
+  Brain,
   ChevronRight,
   Lightbulb,
   ShieldCheck,
@@ -21,18 +22,12 @@ import {
   YAxis,
 } from "recharts";
 
+import { PageHeader } from "@/core/components/PageHeader";
 import { Badge } from "@/core/components/ui/badge";
 import { Skeleton } from "@/core/components/ui/skeleton";
 import { studentApi } from "@/modules/student/api";
 import { useAuthStore } from "@/core/stores/auth";
 import { cn } from "@/core/lib/utils";
-
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 function ProgressRing({
   value,
@@ -70,9 +65,6 @@ function ProgressRing({
   );
 }
 
-const trendTone = (trend: string) =>
-  trend === "improving" ? "success" : trend === "declining" ? "destructive" : "neutral";
-
 const riskBorder = (level: string) =>
   level === "high" ? "border-l-red-500 bg-red-50/50" : level === "medium" ? "border-l-amber-500 bg-amber-50/50" : "border-l-green-500 bg-green-50/50";
 
@@ -81,7 +73,6 @@ const chart = (points: { week: number; value: number }[], scale: (v: number) => 
 
 export function Insights() {
   const token = useAuthStore((s) => s.token);
-  const username = useAuthStore((s) => s.username);
 
   const twin = useQuery({ queryKey: ["me-twin"], queryFn: () => studentApi.digitalTwin(token!), enabled: !!token });
   const career = useQuery({ queryKey: ["me-career"], queryFn: () => studentApi.careerReadiness(token!), enabled: !!token });
@@ -94,47 +85,10 @@ export function Insights() {
   const riskTone = twin.data?.health.risk_level === "high" ? "destructive" : twin.data?.health.risk_level === "medium" ? "warning" : "success";
 
   return (
-    <div className="relative flex flex-col gap-8 overflow-hidden">
-      <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -left-32 top-40 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl" />
+    <div className="flex flex-col gap-6">
+      <PageHeader title="My Insights" subtitle="Digital twin, career readiness, weaknesses and progress" icon={Brain} accent="bg-violet-100 text-violet-600" />
 
-      {/* ── Hero ────────────────────────────────────────────── */}
-      <section
-        className="fade-up relative overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-br from-violet-500/10 via-white/80 to-white p-6 backdrop-blur"
-        style={{ "--d": "0ms" } as React.CSSProperties}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/5 blur-2xl" />
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <Badge tone="primary" className="mb-2">MY INSIGHTS</Badge>
-            <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">
-              {greeting()}, {username}
-            </h1>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              {twin.data
-                ? `${twin.data.student_id} \u00b7 ${twin.data.identity.program} \u00b7 Year ${twin.data.identity.year}`
-                : "Your academic insights — digital twin, career readiness and progress"}
-            </p>
-          </div>
-          {twin.data && (
-            <div className="flex flex-wrap gap-2">
-              <Badge tone={riskTone}>
-                {twin.data.health.risk_level.toUpperCase()} RISK
-              </Badge>
-              <Badge tone={trendTone(twin.data.trajectory.trend)} className="capitalize">
-                {twin.data.trajectory.trend === "improving" && <TrendingUp className="mr-1 h-3 w-3" />}
-                {twin.data.trajectory.trend === "declining" && <TrendingDown className="mr-1 h-3 w-3" />}
-                Trajectory: {twin.data.trajectory.trend}
-              </Badge>
-              <Badge tone="neutral" className="font-mono">
-                {twin.data.student_id}
-              </Badge>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── Stat Rings ──────────────────────────────────────── */}
+      {/* ── Stat Cards ──────────────────────────────────────── */}
       <section
         className="fade-up grid grid-cols-1 gap-4 md:grid-cols-3"
         style={{ "--d": "60ms" } as React.CSSProperties}
@@ -142,7 +96,7 @@ export function Insights() {
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <Skeleton className="h-16 w-16 shrink-0 rounded-full" />
+              <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-8 w-16" />
@@ -153,7 +107,9 @@ export function Insights() {
         ) : (
           <>
             <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <ProgressRing value={twin.data?.health.success_score ?? 0} color="#10b981" />
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+                <Sparkles className="h-5 w-5" />
+              </span>
               <div className="min-w-0">
                 <p className="text-xs text-[var(--muted-foreground)]">Success Score</p>
                 <p className="text-3xl font-extrabold">{twin.data?.health.success_score ?? "\u2014"}</p>
@@ -162,7 +118,9 @@ export function Insights() {
             </div>
 
             <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <ProgressRing value={career.data?.career_readiness_score ?? 0} color="#0ea5e9" />
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-600">
+                <Target className="h-5 w-5" />
+              </span>
               <div className="min-w-0">
                 <p className="text-xs text-[var(--muted-foreground)]">Career Readiness</p>
                 <p className="text-3xl font-extrabold">{career.data?.career_readiness_score ?? "\u2014"}</p>
@@ -173,7 +131,9 @@ export function Insights() {
             </div>
 
             <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <ProgressRing value={100 - (weaknesses.data?.overall_weakness_score ?? 0)} color="#f43f5e" />
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-red-100 text-red-600">
+                <TriangleAlert className="h-5 w-5" />
+              </span>
               <div className="min-w-0">
                 <p className="text-xs text-[var(--muted-foreground)]">Weakness Score</p>
                 <p className="text-3xl font-extrabold">{weaknesses.data?.overall_weakness_score ?? "\u2014"}</p>
